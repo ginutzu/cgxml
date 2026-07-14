@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CGXML to SHP</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+        integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<style>
+/* ── Reset ── */
+*, *::before, *::after { -webkit-box-sizing: border-box; box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Variables ── */
+:root {
+  --bg:      #0b0e14;
+  --panel:   #111520;
+  --border:  #1e2d45;
+  --accent:  #00d4ff;
+  --accent2: #00ff9d;
+  --warn:    #ff9d00;
+  --text:    #c8d6e5;
+  --muted:   #4a6278;
+  --grid:    rgba(0,212,255,0.04);
+}
+
+html { font-size: 15px; }
+
+body {
+  background-color: #0b0e14;
+  background-color: var(--bg);
+  color: #c8d6e5;
+  color: var(--text);
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  min-height: 100vh;
+  padding: 2rem 1rem 3rem;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Grid BG — pure CSS, no JS */
+.bg-grid {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    -webkit-linear-gradient(var(--grid) 1px, transparent 1px),
+    -webkit-linear-gradient(left, var(--grid) 1px, transparent 1px);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none; z-index: 0;
+}
+
+.container { max-width: 760px; margin: 0 auto; position: relative; z-index: 1; }
+
+/* ── HEADER ── */
+header { text-align: center; margin-bottom: 2.5rem; }
+
+.header-badge {
+  display: inline-block;
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: 0.65rem;
+  color: #00d4ff;
+  color: var(--accent);
+  letter-spacing: 0.25em;
+  border: 1px solid #1e2d45;
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.8rem;
+  margin-bottom: 1rem;
+  background: rgba(0,212,255,0.05);
+  -webkit-animation: pulse-border 3s infinite;
+  animation: pulse-border 3s infinite;
+}
+
+@-webkit-keyframes pulse-border {
+  0%,100% { border-color: #1e2d45; }
+  50%      { border-color: rgba(0,212,255,0.4); }
+}
+@keyframes pulse-border {
+  0%,100% { border-color: #1e2d45; border-color: var(--border); }
+  50%      { border-color: rgba(0,212,255,0.4); }
+}
+
+h1 {
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+  /* Gradient text — with safe fallback */
+  color: #00d4ff;
+  color: var(--accent);
+  background: -webkit-linear-gradient(135deg, #fff 0%, #00d4ff 50%, #00ff9d 100%);
+  background: linear-gradient(135deg, #fff 0%, #00d4ff 50%, #00ff9d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: 0.78rem;
+  color: #4a6278;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  margin-top: 0.4rem;
+}
+.subtitle a { color: #00d4ff; color: var(--accent); text-decoration: none; }
+.subtitle a:hover { text-decoration: underline; }
+
+/* ── PANEL ── */
+.panel {
+  background: #111520;
+  background: var(--panel);
+  border: 1px solid #1e2d45;
+  border: 1px solid var(--border);
+  border-top: 2px solid #00d4ff;
+  border-top: 2px solid var(--accent);
+  margin-bottom: 1.2rem;
+  position: relative;
+  overflow: hidden;
+}
+.panel-accent-line {
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: -webkit-linear-gradient(left, transparent, #00d4ff, transparent);
+  background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+  opacity: 0.5;
+}
+.panel-header {
+  display: -webkit-box; display: -ms-flexbox; display: flex;
+  -webkit-box-align: center; -ms-flex-align: center; align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 1.2rem;
+  border-bottom: 1px solid #1e2d45;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,212,255,0.03);
+}
+.panel-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #00d4ff;
+  background: var(--accent);
+  -webkit-box-shadow: 0 0 8px #00d4ff;
+  box-shadow: 0 0 8px #00d4ff;
+  box-shadow: 0 0 8px var(--accent);
+  -ms-flex-negative: 0; flex-shrink: 0;
+}
+.panel-label {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: 0.7rem; letter-spacing: 0.2em;
+  color: #00d4ff; color: var(--accent);
+  text-transform: uppercase;
+}
+.panel-body { padding: 1.4rem 1.2rem; }
+
+/* ── DROP ZONE ── */
+.drop-zone {
+  border: 2px dashed #1e2d45;
+  border: 2px dashed var(--border);
+  padding: 3rem 2rem; text-align: center; cursor: pointer;
+  -webkit-transition: all 0.25s; transition: all 0.25s;
+  position: relative;
+  background: rgba(0,212,255,0.02);
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: #00d4ff; border-color: var(--accent);
+  background: rgba(0,212,255,0.06);
+  -webkit-box-shadow: inset 0 0 30px rgba(0,212,255,0.05);
+  box-shadow: inset 0 0 30px rgba(0,212,255,0.05);
+}
+.drop-zone input[type="file"] {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  font-size: 0; /* IE/Edge fix */
+}
+.drop-icon { font-size: 2.8rem; margin-bottom: 0.8rem; display: block; }
+.drop-title {
+  font-size: 1.05rem; font-weight: 600; color: #c8d6e5;
+  color: var(--text); margin-bottom: 0.3rem; letter-spacing: 0.05em;
+}
+.drop-hint {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: 0.72rem; color: #4a6278; color: var(--muted); letter-spacing: 0.08em;
+}
+.file-selected {
+  margin-top: 1rem;
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: 0.78rem; color: #00ff9d; color: var(--accent2);
+  display: none;
+  word-break: break-all;
+}
+
+/* ── SCHEMA INFO ── */
+.schema-info {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: 0.72rem; color: #4a6278; color: var(--muted);
+  line-height: 1.9; margin-bottom: 1.2rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #1e2d45; border: 1px solid var(--border);
+  background: rgba(0,0,0,0.25);
+}
+.sc { color: #ff9d00; color: var(--warn); }
+.st { color: #00d4ff; color: var(--accent); }
+.sf { color: #00ff9d; color: var(--accent2); }
+
+/* ── AXIS INFO BOX ── */
+.axis-box {
+  border: 1px solid rgba(0,212,255,0.25);
+  padding: 0.75rem 1rem;
+  background: rgba(0,212,255,0.05);
+  margin-bottom: 1.2rem;
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: 0.72rem; line-height: 1.8;
+  color: #c8d6e5; color: var(--text);
+}
+.axis-box strong { color: #00d4ff; color: var(--accent); }
+
+/* ── OPTIONS GRID ── */
+.options-grid {
+  display: -webkit-box; display: -ms-flexbox; display: flex;
+  -ms-flex-wrap: wrap; flex-wrap: wrap;
+  gap: 0.8rem;
+}
+.option-item {
+  -webkit-box-flex: 1; -ms-flex: 1 1 46%; flex: 1 1 46%;
+  display: -webkit-box; display: -ms-flexbox; display: flex;
+  -webkit-box-align: flex-start; -ms-flex-align: flex-start; align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid #1e2d45; border: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+  cursor: pointer; -webkit-transition: all 0.2s; transition: all 0.2s;
+  -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+}
+.option-item:hover {
+  border-color: #00d4ff; border-color: var(--accent);
+  background: rgba(0,212,255,0.04);
+}
+.option-item input[type="checkbox"] {
+  -webkit-appearance: none; -moz-appearance: none; appearance: none;
+  width: 16px; height: 16px; min-width: 16px;
+  border: 2px solid #4a6278; border: 2px solid var(--muted);
+  background: transparent; cursor: pointer;
+  position: relative; margin-top: 2px;
+  -webkit-transition: all 0.2s; transition: all 0.2s;
+}
+.option-item input[type="checkbox"]:checked {
+  background: #00d4ff; background: var(--accent);
+  border-color: #00d4ff; border-color: var(--accent);
+  -webkit-box-shadow: 0 0 8px rgba(0,212,255,0.5);
+  box-shadow: 0 0 8px rgba(0,212,255,0.5);
+}
+.option-item input[type="checkbox"]:checked::after {
+  content: '\2713';
+  position: absolute; top: -2px; left: 1px;
+  font-size: 11px; color: #000; font-weight: 700;
+}
+.opt-text {
+  font-size: 0.82rem; font-weight: 600;
+  letter-spacing: 0.03em; line-height: 1.3;
+}
+.opt-sub {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: 0.65rem; color: #4a6278; color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+/* ── RUN BUTTON ── */
+.btn-run {
+  display: block; width: 100%; padding: 1rem;
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 1.1rem; font-weight: 700;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  background: transparent;
+  border: 2px solid #00d4ff; border: 2px solid var(--accent);
+  color: #00d4ff; color: var(--accent);
+  cursor: pointer; -webkit-transition: all 0.25s; transition: all 0.25s;
+  position: relative; overflow: hidden; margin-bottom: 1.2rem;
+}
+.btn-run:hover:not(:disabled) {
+  color: #000;
+  background: #00d4ff; background: var(--accent);
+}
+.btn-run:disabled {
+  border-color: #4a6278; border-color: var(--muted);
+  color: #4a6278; color: var(--muted);
+  cursor: not-allowed; opacity: 0.6;
+}
+
+/* ── PROGRESS ── */
+.progress-wrap {
+  display: none; height: 3px;
+  background: #1e2d45; background: var(--border);
+  margin-bottom: 1.2rem; overflow: hidden;
+}
+.progress-bar {
+  height: 100%; width: 0%;
+  background: -webkit-linear-gradient(left, #00d4ff, #00ff9d);
+  background: linear-gradient(90deg, #00d4ff, #00ff9d);
+  -webkit-transition: width 0.3s; transition: width 0.3s;
+  -webkit-box-shadow: 0 0 10px #00d4ff; box-shadow: 0 0 10px #00d4ff;
+}
+.progress-bar.ind {
+  width: 100%;
+  background: -webkit-linear-gradient(left, transparent 0%, #00d4ff 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, #00d4ff 50%, transparent 100%);
+  background-size: 200% 100%;
+  -webkit-animation: shimmer 1.5s infinite; animation: shimmer 1.5s infinite;
+}
+@-webkit-keyframes shimmer {
+  0%  { background-position: -200% 0; }
+  100%{ background-position:  200% 0; }
+}
+@keyframes shimmer {
+  0%  { background-position: -200% 0; }
+  100%{ background-position:  200% 0; }
+}
+
+/* ── STATS ── */
+.stats-strip {
+  display: none;
+  -webkit-box-orient: horizontal; -webkit-box-direction: normal;
+  -ms-flex-direction: row; flex-direction: row;
+  border: 1px solid #1e2d45; border: 1px solid var(--border);
+  margin-bottom: 1.2rem;
+  overflow: hidden;
+}
+.stat-cell {
+  -webkit-box-flex: 1; -ms-flex: 1; flex: 1;
+  background: #111520; background: var(--panel);
+  padding: 0.8rem 0.5rem; text-align: center;
+  border-right: 1px solid #1e2d45; border-right: 1px solid var(--border);
+}
+.stat-cell:last-child { border-right: none; }
+.stat-val {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: 1.5rem; color: #00d4ff; color: var(--accent);
+  display: block; line-height: 1;
+}
+.stat-lbl {
+  font-size: 0.65rem; color: #4a6278; color: var(--muted);
+  letter-spacing: 0.08em; text-transform: uppercase; margin-top: 0.25rem;
+}
+
+/* ── LOG ── */
+.log-area {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: 0.74rem; line-height: 1.8;
+  max-height: 300px; overflow-y: auto; padding: 1rem;
+  background: #080b10;
+  border: 1px solid #1e2d45; border: 1px solid var(--border);
+  display: none; margin-bottom: 1.2rem;
+}
+.log-area::-webkit-scrollbar { width: 4px; }
+.log-area::-webkit-scrollbar-track { background: transparent; }
+.log-area::-webkit-scrollbar-thumb { background: #1e2d45; }
+.log-line { display: block; padding: 0; }
+.log-line.info  { color: #c8d6e5; }
+.log-line.ok    { color: #00ff9d; }
+.log-line.warn  { color: #ff9d00; }
+.log-line.error { color: #ff4444; }
+.log-line.head  { color: #00d4ff; }
+.log-line.dim   { color: #4a6278; }
+.log-line::before { content: '\25B6  '; color: #4a6278; }
+
+/* ── DOWNLOAD BUTTON ── */
+.btn-download {
+  display: none; width: 100%; padding: 1rem;
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  font-size: 1.05rem; font-weight: 700;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  background: rgba(0,255,157,0.07);
+  border: 2px solid #00ff9d; border: 2px solid var(--accent2);
+  color: #00ff9d; color: var(--accent2);
+  cursor: pointer; -webkit-transition: all 0.25s; transition: all 0.25s;
+}
+.btn-download:hover {
+  color: #000;
+  background: #00ff9d; background: var(--accent2);
+}
+
+/* ── FOOTER ── */
+footer {
+  text-align: center; margin-top: 2.5rem;
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  font-size: 0.65rem; color: #4a6278; color: var(--muted);
+  letter-spacing: 0.15em;
+}
+footer .sep { color: #1e2d45; color: var(--border); }
+
+/* ── Responsive ── */
+@media (max-width: 520px) {
+  h1 { font-size: 2rem; }
+  .option-item { -webkit-box-flex: 1; -ms-flex: 1 1 100%; flex: 1 1 100%; }
+  .stats-strip { -ms-flex-wrap: wrap; flex-wrap: wrap; }
+  .stat-cell { -webkit-box-flex: 0; -ms-flex: 0 0 50%; flex: 0 0 50%; }
+}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="container">
+
+  <header>
+    <div class="header-badge">GIS CONVERSION TOOL &nbsp;&middot;&nbsp; EPSG:3844 &nbsp;&middot;&nbsp; CGXMLSchema_new_v3</div>
+    <h1>CGXML to SHP</h1>
+    <div class="subtitle">mail: <a href="mailto:ginu.popescu@gmail.com">ginu.popescu@gmail.com</a></div>
+  </header>
+
+  <!-- INPUT -->
+  <div class="panel">
+    <div class="panel-accent-line"></div>
+    <div class="panel-header">
+      <div class="panel-dot"></div>
+      <span class="panel-label">Arhiv&#259; ZIP de intrare</span>
+    </div>
+    <div class="panel-body">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".zip" title="Selecta&#x21B;i arhiva ZIP">
+        <span class="drop-icon">&#x1F5DC;</span>
+        <div class="drop-title">Drag &amp; Drop arhiva ZIP</div>
+        <div class="drop-hint">sau click pentru selectare &nbsp;&middot;&nbsp; *.zip con&#x21B;in&#xE2;nd fi&#x219;iere *.cgxml</div>
+        <div class="file-selected" id="fileSelected"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTIONS -->
+  <div class="panel">
+    <div class="panel-accent-line"></div>
+    <div class="panel-header">
+      <div class="panel-dot"></div>
+      <span class="panel-label">Structur&#259; XML &amp; Op&#x21B;iuni procesare</span>
+    </div>
+    <div class="panel-body">
+
+      <div class="schema-info">
+        <span class="sc">// CGXMLSchema_new_v3.xsd &#x2014; XML DataSet plat (ADO.NET)</span><br>
+        <span class="st">CGXML</span> (r&#259;d&#259;cin&#259;)<br>
+        &nbsp;&nbsp;&#x251C;&#x2500; <span class="st">FileDescription</span>&nbsp;&nbsp;<span class="sf">FILEID &middot; FILENAME &middot; EXPORTDATE &middot; OPERATIONTYPE</span><br>
+        &nbsp;&nbsp;&#x251C;&#x2500; <span class="st">Land</span>&nbsp;&nbsp;<span class="sf">LANDID &middot; FILEID &middot; MEASUREDAREA &middot; PAPERCADNO &middot; CADSECTOR</span><br>
+        &nbsp;&nbsp;&#x251C;&#x2500; <span class="st">Points</span>&nbsp;&nbsp;<span class="sf">POINTID &middot; IMMOVABLEID&#x2192;Land.LANDID &middot; NO(sort) &middot; X &middot; Y</span><br>
+        &nbsp;&nbsp;&#x251C;&#x2500; <span class="st">Parcel</span>&nbsp;&nbsp;<span class="sf">PARCELID &middot; LANDID &middot; NUMBER &middot; USECATEGORY</span><br>
+        &nbsp;&nbsp;&#x2514;&#x2500; <span class="st">Building</span>&nbsp;&nbsp;<span class="sf">BUILDINGID &middot; LANDID &middot; BUILDNO &middot; MEASUREDAREA</span>
+      </div>
+
+      <div class="axis-box">
+        <strong>Axe coordonate CGXML (Stereo70):</strong>&nbsp;&nbsp;
+        X = Easting (Est)&nbsp;&nbsp;|&nbsp;&nbsp;Y = Northing (Nord)<br>
+        <strong>Shapefile output (EPSG:3844):</strong>&nbsp;&nbsp;
+        shp_x &#x2190; X (Easting)&nbsp;&nbsp;|&nbsp;&nbsp;shp_y &#x2190; Y (Northing)&nbsp;&nbsp;&#x2014;&nbsp;&nbsp;f&#259;r&#259; inversare de axe
+      </div>
+
+      <div class="options-grid">
+        <label class="option-item">
+          <input type="checkbox" id="optCloseRing" checked>
+          <div>
+            <div class="opt-text">&#xCE;nchide inelul poligon</div>
+            <div class="opt-sub">Repet&#259; primul punct la final<br>dac&#259; nu este deja repetat</div>
+          </div>
+        </label>
+        <label class="option-item">
+          <input type="checkbox" id="optRichDBF" checked>
+          <div>
+            <div class="opt-text">Atribute extinse DBF</div>
+            <div class="opt-sub">MEASUREDAREA &middot; PAPERCADNO<br>CADSECTOR &middot; OPERTYPE &middot; EXPORTDATE</div>
+          </div>
+        </label>
+        <label class="option-item">
+          <input type="checkbox" id="optBuildings">
+          <div>
+            <div class="opt-text">Include construc&#x21B;ii</div>
+            <div class="opt-sub">Points.BUILDINGID &#x2192; strat<br>constructii.shp separat &#xEE;n ZIP</div>
+          </div>
+        </label>
+        <label class="option-item">
+          <input type="checkbox" id="optSwapXY">
+          <div>
+            <div class="opt-text">For&#x21B;eaz&#259; inversare X&#x2194;Y</div>
+            <div class="opt-sub">Bifea&#x21B;&#x259; doar dac&#259; CGXML-urile<br>au X=Nord, Y=Est (fi&#x219;iere vechi)</div>
+          </div>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- RUN -->
+  <button type="button" class="btn-run" id="btnRun" disabled="disabled">
+    &#x25B6;&nbsp;&nbsp;Proceseaz&#259; fi&#x219;ierele CGXML
+  </button>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-bar ind" id="progressBar"></div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-strip" id="statsStrip">
+    <div class="stat-cell">
+      <span class="stat-val" id="statFiles">0</span>
+      <div class="stat-lbl">Fi&#x219;iere CGXML</div>
+    </div>
+    <div class="stat-cell">
+      <span class="stat-val" id="statLands">0</span>
+      <div class="stat-lbl">Terenuri Land</div>
+    </div>
+    <div class="stat-cell">
+      <span class="stat-val" id="statPolys">0</span>
+      <div class="stat-lbl">Poligoane SHP</div>
+    </div>
+    <div class="stat-cell">
+      <span class="stat-val" id="statPts">0</span>
+      <div class="stat-lbl">Puncte totale</div>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div class="log-area" id="logArea"></div>
+
+  <!-- DOWNLOAD -->
+  <button type="button" class="btn-download" id="btnDownload">
+    &#x2B07;&nbsp;&nbsp;Descarc&#259; arhiva ZIP cu fi&#x219;ierele SHP
+  </button>
+
+  <footer>
+    PROIEC&#x162;IE <span class="sep">&middot;</span> EPSG:3844
+    <span class="sep">&middot;</span> Stereo70
+    <span class="sep">&middot;</span> Pulkovo 1942 (Adj 1958)
+    <span class="sep">&middot;</span> CGXMLSchema_new_v3.xsd
+  </footer>
+
+</div><!-- /container -->
+
+<script>
+/*
+ * CGXML to SHP — Browser Shapefile Generator
+ * Schema : CGXMLSchema_new_v3.xsd
+ * Output : EPSG:3844 (Stereo70 / Pulkovo 1942 Adj 1958)
+ *
+ * CGXML is a flat Microsoft ADO.NET DataSet XML.
+ * All tables are sibling elements under <CGXML> root.
+ *
+ * Coordinate convention in this version:
+ *   CGXML  X = Easting  → SHP geometry x (no swap)
+ *   CGXML  Y = Northing → SHP geometry y (no swap)
+ *
+ * Relationships:
+ *   Points.IMMOVABLEID → Land.LANDID
+ *   Points.BUILDINGID  → Building.BUILDINGID
+ *   Land.FILEID        → FileDescription.FILEID
+ */
+
+/* ── PRJ string (EPSG:3844) ── */
+var PRJ = 'PROJCS["Pulkovo_1942_Adj_1958_Stereo70",' +
+  'GEOGCS["GCS_Pulkovo_1942_Adj_1958",' +
+  'DATUM["D_Pulkovo_1942_Adj_1958",' +
+  'SPHEROID["Krassowsky_1940",6378245.0,298.3]],' +
+  'PRIMEM["Greenwich",0.0],' +
+  'UNIT["Degree",0.0174532925199433]],' +
+  'PROJECTION["Double_Stereographic"],' +
+  'PARAMETER["False_Easting",500000.0],' +
+  'PARAMETER["False_Northing",500000.0],' +
+  'PARAMETER["Central_Meridian",25.0],' +
+  'PARAMETER["Scale_Factor",0.99975],' +
+  'PARAMETER["Latitude_Of_Origin",46.0],' +
+  'UNIT["Meter",1.0]]';
+
+/* ── State ── */
+var selectedFile  = null;
+var outputZipBlob = null;
+
+/* ── DOM refs ── */
+var elLog    = document.getElementById('logArea');
+var elRun    = document.getElementById('btnRun');
+var elDl     = document.getElementById('btnDownload');
+var elStats  = document.getElementById('statsStrip');
+var elProg   = document.getElementById('progressWrap');
+var elDZ     = document.getElementById('dropZone');
+var elFI     = document.getElementById('fileInput');
+var elFSel   = document.getElementById('fileSelected');
+
+/* ── Logging ── */
+function log(msg, cls) {
+  cls = cls || 'info';
+  elLog.style.display = 'block';
+  var s = document.createElement('span');
+  s.className = 'log-line ' + cls;
+  s.textContent = msg;
+  elLog.appendChild(s);
+  elLog.scrollTop = elLog.scrollHeight;
+}
+function clearLog() {
+  while (elLog.firstChild) elLog.removeChild(elLog.firstChild);
+  elLog.style.display = 'none';
+}
+function setProg(on) { elProg.style.display = on ? 'block' : 'none'; }
+
+/* ── File input ── */
+function handleFile(f) {
+  if (!f) return;
+  var name = f.name || '';
+  if (name.toLowerCase().indexOf('.zip') === -1) {
+    alert('Va rugam selectati un fisier .zip');
+    return;
+  }
+  selectedFile = f;
+  elFSel.style.display = 'block';
+  elFSel.textContent = String.fromCharCode(0x1F4C1) + ' ' + name +
+    '  (' + (f.size / 1024).toFixed(1) + ' KB)';
+  elRun.disabled = false;
+  elDl.style.display = 'none';
+  outputZipBlob = null;
+  elStats.style.display = 'none';
+  clearLog();
+}
+
+elFI.addEventListener('change', function(e) {
+  var files = e.target.files || (e.dataTransfer && e.dataTransfer.files);
+  if (files && files[0]) handleFile(files[0]);
+});
+
+/* Drag & drop — works in Edge, Firefox, Chrome, Opera, Safari */
+elDZ.addEventListener('dragover', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  elDZ.className = elDZ.className.indexOf('drag-over') === -1
+    ? elDZ.className + ' drag-over'
+    : elDZ.className;
+});
+elDZ.addEventListener('dragleave', function(e) {
+  e.preventDefault();
+  elDZ.className = elDZ.className.replace(' drag-over', '');
+});
+elDZ.addEventListener('drop', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  elDZ.className = elDZ.className.replace(' drag-over', '');
+  var dt = e.dataTransfer;
+  if (dt && dt.files && dt.files[0]) handleFile(dt.files[0]);
+});
+
+/* ── Run ── */
+elRun.addEventListener('click', function() { processAll(); });
+
+function processAll() {
+  if (!selectedFile) return;
+  clearLog();
+  setProg(true);
+  elRun.disabled = true;
+  elDl.style.display = 'none';
+  outputZipBlob = null;
+  elStats.style.display = 'none';
+
+  /* Read file as ArrayBuffer then pass to JSZip */
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var arrayBuf = e.target.result;
+    JSZip.loadAsync(arrayBuf).then(function(zip) {
+      return processZip(zip);
+    }).catch(function(err) {
+      log('EROARE JSZip: ' + err.message, 'error');
+      setProg(false);
+      elRun.disabled = false;
+    });
+  };
+  reader.onerror = function() {
+    log('EROARE: Nu s-a putut citi fisierul.', 'error');
+    setProg(false);
+    elRun.disabled = false;
+  };
+  reader.readAsArrayBuffer(selectedFile);
+}
+
+function processZip(zip) {
+  log('Citire arhiva ZIP ...', 'head');
+
+  /* Collect .cgxml entries */
+  var entries = [];
+  zip.forEach(function(relPath, zipFile) {
+    if (!zipFile.dir && relPath.toLowerCase().indexOf('.cgxml') !== -1) {
+      entries.push({ path: relPath, file: zipFile });
+    }
+  });
+
+  if (entries.length === 0) {
+    log('EROARE: Nu exista fisiere .cgxml in arhiva!', 'error');
+    setProg(false);
+    elRun.disabled = false;
+    return Promise.resolve();
+  }
+
+  log('Gasite ' + entries.length + ' fisier(e) CGXML', 'ok');
+
+  var swapXY    = document.getElementById('optSwapXY').checked;
+  var closeRing = document.getElementById('optCloseRing').checked;
+  var richDBF   = document.getElementById('optRichDBF').checked;
+  var inclBld   = document.getElementById('optBuildings').checked;
+
+  var allLandPolys = [];
+  var allBldPolys  = [];
+  var totalLands   = 0;
+  var totalPts     = 0;
+
+  /* Process entries sequentially using promise chain */
+  var chain = Promise.resolve();
+  for (var fi = 0; fi < entries.length; fi++) {
+    (function(idx) {
+      chain = chain.then(function() {
+        var entry = entries[idx];
+        var fname = entry.path.split('/').pop();
+        log('[' + (idx + 1) + '/' + entries.length + ']  ' + fname, 'head');
+
+        return entry.file.async('string').then(function(xml) {
+          var result;
+          try {
+            result = parseCGXML(xml, fname, swapXY, closeRing, inclBld);
+          } catch(e) {
+            log('  -> Eroare XML: ' + e.message, 'error');
+            return;
+          }
+
+          totalLands += result.nLands;
+          log('  Land-uri gasite: ' + result.nLands + '  |  Puncte brute: ' + result.nRawPts, 'dim');
+          if (result.nSkipped > 0) {
+            log('  Ignorate (< 3 puncte): ' + result.nSkipped, 'warn');
+          }
+
+          for (var i = 0; i < result.landPolys.length; i++) {
+            var poly = result.landPolys[i];
+            poly.attrs.ID = allLandPolys.length + 1;
+            totalPts += poly.coords.length;
+            allLandPolys.push(poly);
+            log('  OK Land LANDID=' + poly.attrs.LANDID +
+                '  pct=' + poly.coords.length +
+                '  PAPERCADNO="' + (poly.attrs.PAPERCADNO || '-') + '"', 'ok');
+          }
+
+          if (inclBld) {
+            for (var j = 0; j < result.bldPolys.length; j++) {
+              var bp = result.bldPolys[j];
+              bp.attrs.ID = allBldPolys.length + 1;
+              allBldPolys.push(bp);
+            }
+            if (result.bldPolys.length > 0) {
+              log('  Constructii: ' + result.bldPolys.length, 'info');
+            }
+          }
+        }).catch(function(e) {
+          log('  -> Eroare citire: ' + e.message, 'error');
+        });
+      });
+    })(fi);
+  }
+
+  return chain.then(function() {
+    if (allLandPolys.length === 0) {
+      log('EROARE: Niciun poligon Land valid!', 'error');
+      setProg(false);
+      elRun.disabled = false;
+      return;
+    }
+
+    log('--- TOTAL: ' + allLandPolys.length + ' poligoane, ' + totalPts + ' puncte', 'head');
+    log('Generare fisiere shapefile ...', 'info');
+
+    var shpL = buildSHP(allLandPolys);
+    var dbfL = buildDBF(allLandPolys, richDBF, 'land');
+
+    var outZip = new JSZip();
+    outZip.file('teren.shp', shpL.shpBuf);
+    outZip.file('teren.shx', shpL.shxBuf);
+    outZip.file('teren.dbf', dbfL);
+    outZip.file('teren.prj', PRJ);
+    outZip.file('teren.cpg', 'UTF-8');
+
+    if (inclBld && allBldPolys.length > 0) {
+      var shpB = buildSHP(allBldPolys);
+      var dbfB = buildDBF(allBldPolys, richDBF, 'building');
+      outZip.file('constructii.shp', shpB.shpBuf);
+      outZip.file('constructii.shx', shpB.shxBuf);
+      outZip.file('constructii.dbf', dbfB);
+      outZip.file('constructii.prj', PRJ);
+      outZip.file('constructii.cpg', 'UTF-8');
+      log('Strat constructii.shp: ' + allBldPolys.length + ' poligoane', 'ok');
+    }
+
+    return outZip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(function(blob) {
+      outputZipBlob = blob;
+      log('ZIP generat: ' + (blob.size / 1024).toFixed(1) + ' KB', 'ok');
+
+      document.getElementById('statFiles').textContent = entries.length;
+      document.getElementById('statLands').textContent = totalLands;
+      document.getElementById('statPolys').textContent = allLandPolys.length;
+      document.getElementById('statPts').textContent   = totalPts;
+      elStats.style.display = '-webkit-box';
+      elStats.style.display = '-ms-flexbox';
+      elStats.style.display = 'flex';
+
+      elDl.style.display = 'block';
+      setProg(false);
+      elRun.disabled = false;
+    });
+  });
+}
+
+/* ════════════════════════════════════════════════════════════
+   CGXML PARSER — CGXMLSchema_new_v3.xsd
+   Flat ADO.NET XML DataSet: all tables are sibling elements.
+
+   Coordinate assignment:
+     CGXML X = Easting  → shp_x = X  (no swap, default)
+     CGXML Y = Northing → shp_y = Y  (no swap, default)
+   If optSwapXY is checked:
+     shp_x = Y, shp_y = X  (legacy files where X=Nord)
+   ════════════════════════════════════════════════════════════ */
+function parseCGXML(xmlText, filename, swapXY, closeRing, inclBld) {
+  var parser = new DOMParser();
+  var doc    = parser.parseFromString(xmlText, 'application/xml');
+
+  /* Cross-browser parse error detection */
+  var pe = doc.querySelector('parsererror') ||
+           doc.getElementsByTagName('parsererror')[0];
+  if (pe) throw new Error(pe.textContent.slice(0, 120));
+
+  /*
+   * Safe child-text helpers.
+   * We iterate el.children directly instead of using :scope >
+   * for maximum cross-browser compatibility (IE11, old Edge, Firefox).
+   */
+  function childEl(el, tag) {
+    var ch = el.children || el.childNodes;
+    for (var i = 0; i < ch.length; i++) {
+      if (ch[i].tagName === tag) return ch[i];
+    }
+    return null;
+  }
+  function ct(el, tag) {
+    var c = childEl(el, tag);
+    return c ? (c.textContent || c.innerText || '').replace(/^\s+|\s+$/g, '') : '';
+  }
+  function cf(el, tag) {
+    var v = ct(el, tag);
+    return v !== '' ? parseFloat(v) : NaN;
+  }
+  function ci(el, tag) {
+    var v = ct(el, tag);
+    return v !== '' ? parseInt(v, 10) : NaN;
+  }
+
+  /* ── FileDescription ── */
+  var fdMap = {};
+  var fdEls = doc.getElementsByTagName('FileDescription');
+  for (var i = 0; i < fdEls.length; i++) {
+    var fd   = fdEls[i];
+    var fdId = ci(fd, 'FILEID');
+    if (!isNaN(fdId)) {
+      fdMap[fdId] = {
+        FILENAME:      ct(fd, 'FILENAME'),
+        EXPORTDATE:    ct(fd, 'EXPORTDATE').slice(0, 10),
+        OPERATIONTYPE: ct(fd, 'OPERATIONTYPE'),
+        LICENSEDNAME:  ct(fd, 'LICENSEDNAME'),
+      };
+    }
+  }
+
+  /* ── Land ── */
+  var landMap = {};
+  var landEls = doc.getElementsByTagName('Land');
+  for (var i = 0; i < landEls.length; i++) {
+    var lEl  = landEls[i];
+    var lId  = ci(lEl, 'LANDID');
+    if (!isNaN(lId)) {
+      landMap[lId] = {
+        LANDID:       lId,
+        FILEID:       ci(lEl, 'FILEID'),
+        CADSECTOR:    ct(lEl, 'CADSECTOR'),
+        MEASUREDAREA: cf(lEl, 'MEASUREDAREA'),
+        PAPERCADNO:   ct(lEl, 'PAPERCADNO'),
+        E2IDENTIFIER: ct(lEl, 'E2IDENTIFIER'),
+        TOPONO:       ct(lEl, 'TOPONO'),
+        CADGENNO:     ct(lEl, 'CADGENNO'),
+      };
+    }
+  }
+
+  /* ── Building ── */
+  var bldMap = {};
+  if (inclBld) {
+    var bldEls = doc.getElementsByTagName('Building');
+    for (var i = 0; i < bldEls.length; i++) {
+      var bEl = bldEls[i];
+      var bId = ci(bEl, 'BUILDINGID');
+      if (!isNaN(bId)) {
+        bldMap[bId] = {
+          BUILDINGID:   bId,
+          LANDID:       ci(bEl, 'LANDID'),
+          BUILDNO:      ci(bEl, 'BUILDNO'),
+          MEASUREDAREA: cf(bEl, 'MEASUREDAREA'),
+        };
+      }
+    }
+  }
+
+  /* ── Points — group by IMMOVABLEID / BUILDINGID ── */
+  var ptsByLand = {};   /* landId  → [{no, x, y}] */
+  var ptsByBld  = {};   /* bldId   → [{no, x, y}] */
+  var nRawPts   = 0;
+
+  var ptEls = doc.getElementsByTagName('Points');
+  for (var i = 0; i < ptEls.length; i++) {
+    var pEl   = ptEls[i];
+    var immId = ci(pEl, 'IMMOVABLEID');
+    var bldId = ci(pEl, 'BUILDINGID');
+    var noStr = ct(pEl, 'NO');
+    var xv    = cf(pEl, 'X');   /* Easting  in Stereo70 (default) */
+    var yv    = cf(pEl, 'Y');   /* Northing in Stereo70 (default) */
+
+    if (isNaN(xv) || isNaN(yv)) continue;
+    nRawPts++;
+
+    var no = noStr !== '' ? parseFloat(noStr) : nRawPts;
+    if (isNaN(no)) no = nRawPts;
+    var pt = { no: no, x: xv, y: yv };
+
+    if (!isNaN(immId)) {
+      if (!ptsByLand[immId]) ptsByLand[immId] = [];
+      ptsByLand[immId].push(pt);
+    }
+    if (inclBld && !isNaN(bldId)) {
+      if (!ptsByBld[bldId]) ptsByBld[bldId] = [];
+      ptsByBld[bldId].push(pt);
+    }
+  }
+
+  /* ── Build Land polygons ── */
+  var landPolys = [];
+  var nSkipped  = 0;
+
+  for (var landId in ptsByLand) {
+    if (!ptsByLand.hasOwnProperty(landId)) continue;
+    var pts  = ptsByLand[landId];
+    var lid  = parseInt(landId, 10);
+    var land = landMap[lid] || { LANDID: lid };
+    var fd2  = fdMap[land.FILEID] || {};
+
+    /* Sort ascending by NO */
+    pts.sort(function(a, b) { return a.no - b.no; });
+
+    /*
+     * Coordinate mapping:
+     *   Default (swapXY=false): shp_x = X (Easting), shp_y = Y (Northing)
+     *   Legacy  (swapXY=true):  shp_x = Y,           shp_y = X
+     */
+    var coords = [];
+    for (var k = 0; k < pts.length; k++) {
+      var p = pts[k];
+      coords.push(swapXY ? [p.y, p.x] : [p.x, p.y]);
+    }
+
+    if (coords.length < 3) { nSkipped++; continue; }
+
+    /* Close ring */
+    if (closeRing) {
+      var first = coords[0], last = coords[coords.length - 1];
+      if (first[0] !== last[0] || first[1] !== last[1]) {
+        coords.push([first[0], first[1]]);
+      }
+    }
+
+    landPolys.push({
+      coords: coords,
+      attrs: {
+        LANDID:       lid,
+        MEASUREDAREA: isNaN(land.MEASUREDAREA) ? 0 : land.MEASUREDAREA,
+        PAPERCADNO:   (land.PAPERCADNO    || '').slice(0, 50),
+        E2IDENTIF:    (land.E2IDENTIFIER  || '').slice(0, 50),
+        CADSECTOR:    (land.CADSECTOR     || '').slice(0, 50),
+        TOPONO:       (land.TOPONO        || '').slice(0, 50),
+        FILENAME:     (fd2.FILENAME       || filename).slice(0, 50),
+        OPERTYPE:     (fd2.OPERATIONTYPE  || '').slice(0, 50),
+        EXPORTDATE:   (fd2.EXPORTDATE     || '').slice(0, 12),
+      }
+    });
+  }
+
+  /* ── Build Building polygons ── */
+  var bldPolys = [];
+  if (inclBld) {
+    for (var bIdStr in ptsByBld) {
+      if (!ptsByBld.hasOwnProperty(bIdStr)) continue;
+      var bpts = ptsByBld[bIdStr];
+      var bid  = parseInt(bIdStr, 10);
+      var bld  = bldMap[bid] || { BUILDINGID: bid };
+
+      bpts.sort(function(a, b) { return a.no - b.no; });
+
+      var bc = [];
+      for (var k = 0; k < bpts.length; k++) {
+        var bp = bpts[k];
+        bc.push(swapXY ? [bp.y, bp.x] : [bp.x, bp.y]);
+      }
+      if (bc.length < 3) continue;
+      if (closeRing) {
+        var bf = bc[0], bl = bc[bc.length - 1];
+        if (bf[0] !== bl[0] || bf[1] !== bl[1]) bc.push([bf[0], bf[1]]);
+      }
+      bldPolys.push({
+        coords: bc,
+        attrs: {
+          BUILDINGID:   bid,
+          LANDID:       isNaN(bld.LANDID) ? 0 : bld.LANDID,
+          BUILDNO:      isNaN(bld.BUILDNO) ? 0 : bld.BUILDNO,
+          MEASUREDAREA: isNaN(bld.MEASUREDAREA) ? 0 : bld.MEASUREDAREA,
+          FILENAME:     filename.slice(0, 50),
+        }
+      });
+    }
+  }
+
+  return {
+    landPolys: landPolys,
+    bldPolys:  bldPolys,
+    nLands:    countKeys(landMap),
+    nRawPts:   nRawPts,
+    nSkipped:  nSkipped,
+  };
+}
+
+function countKeys(obj) {
+  var n = 0;
+  for (var k in obj) { if (obj.hasOwnProperty(k)) n++; }
+  return n;
+}
+
+/* ════════════════════════════════════════════════════════════
+   SHAPEFILE BUILDER — Esri SHP + SHX (Shape Type 5: Polygon)
+   ════════════════════════════════════════════════════════════ */
+function buildSHP(polygons) {
+  /* Content bytes per record:
+     shapeType(4) + bbox(32) + numParts(4) + numPoints(4) + parts[0](4) + coords(n*16) */
+  var cSizes = [];
+  for (var i = 0; i < polygons.length; i++) {
+    cSizes.push(4 + 32 + 4 + 4 + 4 + polygons[i].coords.length * 16);
+  }
+
+  var shpLen = 100;
+  for (var i = 0; i < cSizes.length; i++) shpLen += 8 + cSizes[i];
+  var shxLen = 100 + polygons.length * 8;
+
+  /* Global bounding box */
+  var xn = Infinity, yn = Infinity, xx = -Infinity, yx = -Infinity;
+  for (var i = 0; i < polygons.length; i++) {
+    var cs = polygons[i].coords;
+    for (var j = 0; j < cs.length; j++) {
+      if (cs[j][0] < xn) xn = cs[j][0];
+      if (cs[j][0] > xx) xx = cs[j][0];
+      if (cs[j][1] < yn) yn = cs[j][1];
+      if (cs[j][1] > yx) yx = cs[j][1];
+    }
+  }
+  if (!isFinite(xn)) { xn = yn = xx = yx = 0; }
+
+  var shpBuf = new ArrayBuffer(shpLen);
+  var shxBuf = new ArrayBuffer(shxLen);
+  var sv = new DataView(shpBuf);
+  var xv = new DataView(shxBuf);
+
+  function writeHdr(dv, flen) {
+    dv.setInt32(0,  9994, false);
+    dv.setInt32(4,  0, false); dv.setInt32(8,  0, false);
+    dv.setInt32(12, 0, false); dv.setInt32(16, 0, false);
+    dv.setInt32(20, 0, false);
+    dv.setInt32(24, (flen / 2) | 0, false);  /* file length in 16-bit words */
+    dv.setInt32(28, 1000, true);              /* version */
+    dv.setInt32(32, 5,    true);              /* shape type: Polygon */
+    dv.setFloat64(36, xn, true); dv.setFloat64(44, yn, true);
+    dv.setFloat64(52, xx, true); dv.setFloat64(60, yx, true);
+    dv.setFloat64(68, 0,  true); dv.setFloat64(76, 0, true);
+    dv.setFloat64(84, 0,  true); dv.setFloat64(92, 0, true);
+  }
+  writeHdr(sv, shpLen);
+  writeHdr(xv, shxLen);
+
+  var sOff = 100, xOff = 100;
+  for (var i = 0; i < polygons.length; i++) {
+    var coords = polygons[i].coords;
+    var n      = coords.length;
+    var cBytes = cSizes[i];
+    var cWords = (cBytes / 2) | 0;
+
+    /* SHX record */
+    xv.setInt32(xOff,   (sOff / 2) | 0, false);
+    xv.setInt32(xOff+4, cWords,          false);
+    xOff += 8;
+
+    /* SHP record header */
+    sv.setInt32(sOff,   i + 1,  false);   /* record number (1-based) */
+    sv.setInt32(sOff+4, cWords, false);   /* content length in words */
+    sOff += 8;
+
+    /* Polygon bounding box */
+    var pxn=Infinity, pyn=Infinity, pxx=-Infinity, pyx=-Infinity;
+    for (var j = 0; j < coords.length; j++) {
+      if (coords[j][0] < pxn) pxn = coords[j][0];
+      if (coords[j][0] > pxx) pxx = coords[j][0];
+      if (coords[j][1] < pyn) pyn = coords[j][1];
+      if (coords[j][1] > pyx) pyx = coords[j][1];
+    }
+
+    sv.setInt32(sOff, 5, true);            sOff += 4;   /* shape type */
+    sv.setFloat64(sOff, pxn, true);        sOff += 8;
+    sv.setFloat64(sOff, pyn, true);        sOff += 8;
+    sv.setFloat64(sOff, pxx, true);        sOff += 8;
+    sv.setFloat64(sOff, pyx, true);        sOff += 8;
+    sv.setInt32(sOff, 1, true);            sOff += 4;   /* numParts = 1 */
+    sv.setInt32(sOff, n, true);            sOff += 4;   /* numPoints */
+    sv.setInt32(sOff, 0, true);            sOff += 4;   /* parts[0] = 0 */
+
+    for (var j = 0; j < coords.length; j++) {
+      sv.setFloat64(sOff, coords[j][0], true); sOff += 8;
+      sv.setFloat64(sOff, coords[j][1], true); sOff += 8;
+    }
+  }
+
+  return { shpBuf: shpBuf, shxBuf: shxBuf };
+}
+
+/* ════════════════════════════════════════════════════════════
+   DBF BUILDER — dBASE III+ format
+   ════════════════════════════════════════════════════════════ */
+function buildDBF(polygons, rich, type) {
+  var fields;
+  if (type === 'land') {
+    fields = rich
+      ? [
+          { name:'ID',          type:'N', len:10, dec:0 },
+          { name:'LANDID',      type:'N', len:10, dec:0 },
+          { name:'MEASRD_AREA', type:'N', len:16, dec:3 },
+          { name:'PAPERCADNO',  type:'C', len:50, dec:0 },
+          { name:'E2IDENTIF',   type:'C', len:50, dec:0 },
+          { name:'CADSECTOR',   type:'C', len:50, dec:0 },
+          { name:'TOPONO',      type:'C', len:50, dec:0 },
+          { name:'FILENAME',    type:'C', len:50, dec:0 },
+          { name:'OPERTYPE',    type:'C', len:50, dec:0 },
+          { name:'EXPORTDATE',  type:'C', len:12, dec:0 },
+        ]
+      : [
+          { name:'ID',         type:'N', len:10, dec:0 },
+          { name:'LANDID',     type:'N', len:10, dec:0 },
+          { name:'PAPERCADNO', type:'C', len:50, dec:0 },
+          { name:'FILENAME',   type:'C', len:50, dec:0 },
+        ];
+  } else {
+    fields = [
+      { name:'ID',          type:'N', len:10, dec:0 },
+      { name:'BUILDINGID',  type:'N', len:10, dec:0 },
+      { name:'LANDID',      type:'N', len:10, dec:0 },
+      { name:'BUILDNO',     type:'N', len:6,  dec:0 },
+      { name:'MEASRD_AREA', type:'N', len:16, dec:3 },
+      { name:'FILENAME',    type:'C', len:50, dec:0 },
+    ];
+  }
+
+  var recLen  = 1;
+  for (var i = 0; i < fields.length; i++) recLen += fields[i].len;
+  var hdrSize = 32 + fields.length * 32 + 1;
+  var buf     = new ArrayBuffer(hdrSize + polygons.length * recLen);
+  var dv      = new DataView(buf);
+  var u8      = new Uint8Array(buf);
+
+  var d = new Date();
+  dv.setUint8(0, 3);
+  dv.setUint8(1, d.getFullYear() - 1900);
+  dv.setUint8(2, d.getMonth() + 1);
+  dv.setUint8(3, d.getDate());
+  dv.setInt32(4,  polygons.length, true);
+  dv.setInt16(8,  hdrSize,         true);
+  dv.setInt16(10, recLen,          true);
+
+  var fo = 32;
+  for (var i = 0; i < fields.length; i++) {
+    var f   = fields[i];
+    var nb  = strToBytes(f.name.slice(0, 11), 11);
+    for (var k = 0; k < nb.length; k++) u8[fo + k] = nb[k];
+    dv.setUint8(fo + 11, f.type.charCodeAt(0));
+    dv.setUint8(fo + 16, f.len);
+    dv.setUint8(fo + 17, f.dec);
+    fo += 32;
+  }
+  dv.setUint8(fo, 0x0D);  /* header terminator */
+
+  var ro = hdrSize;
+  for (var i = 0; i < polygons.length; i++) {
+    dv.setUint8(ro, 0x20); ro++;   /* deletion flag */
+
+    for (var j = 0; j < fields.length; j++) {
+      var f   = fields[j];
+      var raw = polygons[i].attrs[f.name];
+      if (raw === undefined || raw === null) raw = '';
+      var str;
+      if (f.type === 'N') {
+        var num = parseFloat(raw) || 0;
+        str = f.dec > 0
+          ? num.toFixed(f.dec)
+          : String(Math.round(num));
+        if (str.length > f.len) str = str.slice(-f.len);
+        while (str.length < f.len) str = ' ' + str;
+      } else {
+        str = String(raw).slice(0, f.len);
+        while (str.length < f.len) str = str + ' ';
+      }
+      var bytes = strToBytes(str, f.len);
+      for (var k = 0; k < bytes.length; k++) u8[ro + k] = bytes[k];
+      ro += f.len;
+    }
+  }
+  return buf;
+}
+
+/* ASCII string → fixed-length byte array (UTF-8 safe for Latin chars) */
+function strToBytes(str, len) {
+  var arr = new Array(len);
+  for (var i = 0; i < len; i++) {
+    arr[i] = i < str.length ? str.charCodeAt(i) & 0xFF : 0;
+  }
+  return arr;
+}
+
+/* ── Download ── */
+elDl.addEventListener('click', function() {
+  if (!outputZipBlob) return;
+  var url = (window.URL || window.webkitURL).createObjectURL(outputZipBlob);
+
+  /* Modern browsers */
+  if (typeof document.createElement('a').download !== 'undefined') {
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'cgxml_to_shp.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } else {
+    /* Fallback: open in new tab (IE/old Edge) */
+    window.open(url, '_blank');
+  }
+
+  setTimeout(function() {
+    (window.URL || window.webkitURL).revokeObjectURL(url);
+  }, 30000);
+});
+</script>
+</body>
+</html>
