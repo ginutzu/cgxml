@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CGXML2SHP v2.1</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+        integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<style>
+/* ── Reset ── */
+*, *::before, *::after { -webkit-box-sizing: border-box; box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Variables ── */
+:root {
+  --bg:      #0b0e14;
+  --panel:   #111520;
+  --border:  #1e2d45;
+  --accent:  #00d4ff;
+  --accent2: #00ff9d;
+  --warn:    #ff9d00;
+  --text:    #c8d6e5;
+  --muted:   #4a6278;
+  --grid:    rgba(0,212,255,0.04);
+}
+
+html { font-size: 15px; }
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Rajdhani', 'Segoe UI', Arial, sans-serif;
+  min-height: 100vh;
+  padding: 2rem 1rem 3rem;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.bg-grid {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none; z-index: 0;
+}
+
+.container { max-width: 760px; margin: 0 auto; position: relative; z-index: 1; }
+
+/* ── HEADER ── */
+header { text-align: center; margin-bottom: 2.5rem; }
+
+.header-badge {
+  display: inline-block;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--accent);
+  letter-spacing: 0.25em;
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.8rem;
+  margin-bottom: 1rem;
+  background: rgba(0,212,255,0.05);
+  animation: pulse-border 3s infinite;
+}
+
+@keyframes pulse-border {
+  0%,100% { border-color: var(--border); }
+  50%      { border-color: rgba(0,212,255,0.4); }
+}
+
+h1 {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 3rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; line-height: 1;
+  margin-bottom: 0.5rem;
+  color: var(--accent);
+  background: linear-gradient(135deg, #fff 0%, #00d4ff 50%, #00ff9d 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+.subtitle {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.78rem; color: var(--muted); letter-spacing: 0.12em; margin-top: 0.4rem;
+}
+.subtitle a { color: var(--accent); text-decoration: none; }
+.subtitle a:hover { text-decoration: underline; }
+
+/* ── PANEL ── */
+.panel {
+  background: var(--panel); border: 1px solid var(--border);
+  border-top: 2px solid var(--accent); margin-bottom: 1.2rem;
+  position: relative; overflow: hidden;
+}
+.panel-accent-line {
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0.5;
+}
+.panel-header {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.7rem 1.2rem; border-bottom: 1px solid var(--border);
+  background: rgba(0,212,255,0.03);
+}
+.panel-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 8px var(--accent); flex-shrink: 0;
+}
+.panel-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase;
+}
+.panel-body { padding: 1.4rem 1.2rem; }
+
+/* ── DROP ZONE ── */
+.drop-zone {
+  border: 2px dashed var(--border); padding: 3rem 2rem; text-align: center; cursor: pointer;
+  transition: all 0.25s; position: relative; background: rgba(0,212,255,0.02);
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--accent); background: rgba(0,212,255,0.06);
+  box-shadow: inset 0 0 30px rgba(0,212,255,0.05);
+}
+.drop-zone input[type="file"] {
+  position: absolute; top:0; left:0; right:0; bottom:0;
+  opacity:0; cursor:pointer; width:100%; height:100%; font-size:0;
+}
+.drop-icon { font-size: 2.8rem; margin-bottom: 0.8rem; display: block; }
+.drop-title { font-size: 1.05rem; font-weight: 600; color: var(--text); margin-bottom: 0.3rem; letter-spacing: 0.05em; }
+.drop-hint { font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; color: var(--muted); letter-spacing: 0.08em; }
+.file-selected { margin-top: 1rem; font-family: 'Share Tech Mono', monospace; font-size: 0.78rem; color: var(--accent2); display: none; word-break: break-all; }
+
+/* ── SCHEMA INFO ── */
+.schema-info {
+  font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; color: var(--muted);
+  line-height: 1.9; margin-bottom: 1.2rem; padding: 0.9rem 1rem;
+  border: 1px solid var(--border); background: rgba(0,0,0,0.25);
+}
+.sc { color: var(--warn); } .st { color: var(--accent); } .sf { color: var(--accent2); }
+
+/* ── AXIS INFO BOX ── */
+.axis-box {
+  border: 1px solid rgba(0,212,255,0.25); padding: 0.75rem 1rem;
+  background: rgba(0,212,255,0.05); margin-bottom: 1.2rem;
+  font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; line-height: 1.8; color: var(--text);
+}
+.axis-box strong { color: var(--accent); }
+
+/* ── OPTIONS GRID ── */
+.options-grid { display: flex; flex-wrap: wrap; gap: 0.8rem; }
+.option-item {
+  flex: 1 1 46%; display: flex; align-items: flex-start; gap: 0.7rem;
+  padding: 0.8rem 1rem; border: 1px solid var(--border); background: rgba(255,255,255,0.02);
+  cursor: pointer; transition: all 0.2s; user-select: none;
+}
+.option-item:hover { border-color: var(--accent); background: rgba(0,212,255,0.04); }
+.option-item input[type="checkbox"] {
+  appearance: none; width: 16px; height: 16px; min-width: 16px;
+  border: 2px solid var(--muted); background: transparent; cursor: pointer;
+  position: relative; margin-top: 2px; transition: all 0.2s;
+}
+.option-item input[type="checkbox"]:checked {
+  background: var(--accent); border-color: var(--accent); box-shadow: 0 0 8px rgba(0,212,255,0.5);
+}
+.option-item input[type="checkbox"]:checked::after {
+  content: '\2713'; position: absolute; top: -2px; left: 1px;
+  font-size: 11px; color: #000; font-weight: 700;
+}
+.opt-text { font-size: 0.82rem; font-weight: 600; letter-spacing: 0.03em; line-height: 1.3; }
+.opt-sub { font-family: 'Share Tech Mono', monospace; font-size: 0.65rem; color: var(--muted); margin-top: 0.15rem; }
+
+/* ── RUN BUTTON ── */
+.btn-run {
+  display: block; width: 100%; padding: 1rem;
+  font-family: 'Rajdhani', sans-serif; font-size: 1.1rem; font-weight: 700;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  background: transparent; border: 2px solid var(--accent); color: var(--accent);
+  cursor: pointer; transition: all 0.25s; position: relative; overflow: hidden; margin-bottom: 1.2rem;
+}
+.btn-run:hover:not(:disabled) { color: #000; background: var(--accent); }
+.btn-run:disabled { border-color: var(--muted); color: var(--muted); cursor: not-allowed; opacity: 0.6; }
+
+/* ── PROGRESS ── */
+.progress-wrap { display: none; height: 3px; background: var(--border); margin-bottom: 1.2rem; overflow: hidden; }
+.progress-bar {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.3s;
+  box-shadow: 0 0 10px var(--accent);
+}
+.progress-bar.ind {
+  width: 100%;
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer { 0%{ background-position: -200% 0; } 100%{ background-position: 200% 0; } }
+
+/* ── STATS ── */
+.stats-strip {
+  display: none; flex-direction: row; border: 1px solid var(--border);
+  margin-bottom: 1.2rem; overflow: hidden;
+}
+.stat-cell { flex: 1; background: var(--panel); padding: 0.8rem 0.5rem; text-align: center; border-right: 1px solid var(--border); }
+.stat-cell:last-child { border-right: none; }
+.stat-val { font-family: 'Share Tech Mono', monospace; font-size: 1.5rem; color: var(--accent); display: block; line-height: 1; }
+.stat-lbl { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 0.25rem; }
+
+/* ── LOG ── */
+.log-area {
+  font-family: 'Share Tech Mono', monospace; font-size: 0.74rem; line-height: 1.8;
+  max-height: 300px; overflow-y: auto; padding: 1rem; background: #080b10;
+  border: 1px solid var(--border); display: none; margin-bottom: 1.2rem;
+}
+.log-area::-webkit-scrollbar { width: 4px; }
+.log-area::-webkit-scrollbar-track { background: transparent; }
+.log-area::-webkit-scrollbar-thumb { background: var(--border); }
+.log-line { display: block; }
+.log-line.info  { color: var(--text); }
+.log-line.ok    { color: var(--accent2); }
+.log-line.warn  { color: var(--warn); }
+.log-line.error { color: #ff4444; }
+.log-line.head  { color: var(--accent); }
+.log-line.dim   { color: var(--muted); }
+.log-line::before { content: '▶  '; color: var(--muted); }
+
+/* ── DOWNLOAD BUTTON ── */
+.btn-download {
+  display: none; width: 100%; padding: 1rem;
+  font-family: 'Rajdhani', sans-serif; font-size: 1.05rem; font-weight: 700;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  background: rgba(0,255,157,0.07); border: 2px solid var(--accent2); color: var(--accent2);
+  cursor: pointer; transition: all 0.25s;
+}
+.btn-download:hover { color: #000; background: var(--accent2); }
+
+/* ── FOOTER ── */
+footer {
+  text-align: center; margin-top: 2.5rem;
+  font-family: 'Share Tech Mono', monospace; font-size: 0.65rem; color: var(--muted); letter-spacing: 0.15em;
+}
+footer .sep { color: var(--border); }
+
+@media (max-width: 520px) {
+  h1 { font-size: 2rem; }
+  .option-item { flex: 1 1 100%; }
+  .stats-strip { flex-wrap: wrap; }
+  .stat-cell { flex: 0 0 50%; }
+}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="container">
+
+  <header>
+    <div class="header-badge">GIS CONVERSION TOOL &nbsp;&middot;&nbsp; EPSG:3844 &nbsp;&middot;&nbsp; CGXMLSchema_new_v3</div>
+    <h1>CGXML2SHP v2.1</h1>
+    <div class="subtitle">Convertor cadastru CGXML &rarr; Shapefile &nbsp;&middot;&nbsp; cu enclave &amp; atribute extinse</div>
+    <div class="subtitle"><a href="mailto:ginu.popescu@gmail.com">ginu.popescu@gmail.com</a></div>
+  </header>
+
+  <!-- INPUT -->
+  <div class="panel">
+    <div class="panel-accent-line"></div>
+    <div class="panel-header"><div class="panel-dot"></div><span class="panel-label">Arhivă ZIP de intrare</span></div>
+    <div class="panel-body">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".zip" title="Selectați arhiva ZIP">
+        <span class="drop-icon">🗜</span>
+        <div class="drop-title">Drag &amp; Drop arhiva ZIP</div>
+        <div class="drop-hint">sau click pentru selectare &nbsp;&middot;&nbsp; *.zip conținând fișiere *.cgxml</div>
+        <div class="file-selected" id="fileSelected"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTIONS -->
+  <div class="panel">
+    <div class="panel-accent-line"></div>
+    <div class="panel-header"><div class="panel-dot"></div><span class="panel-label">Structură XML &amp; Opțiuni procesare</span></div>
+    <div class="panel-body">
+
+      <div class="schema-info">
+        <span class="sc">// CGXMLSchema_new_v3.xsd — XML DataSet plat (ADO.NET)</span><br>
+        <span class="st">CGXML</span> (rădăcină)<br>
+        &nbsp;&nbsp;├─ <span class="st">FileDescription</span>&nbsp;&nbsp;<span class="sf">FILEID · FILENAME · EXPORTDATE · OPERATIONTYPE</span><br>
+        &nbsp;&nbsp;├─ <span class="st">Land</span>&nbsp;&nbsp;<span class="sf">LANDID · FILEID · MEASUREDAREA · PAPERCADNO · CADSECTOR · E2IDENTIFIER · TOPONO</span><br>
+        &nbsp;&nbsp;├─ <span class="st">Points</span>&nbsp;&nbsp;<span class="sf">IMMOVABLEID→Land · BUILDINGID→Building · NO(sort) · X · Y</span><br>
+        &nbsp;&nbsp;├─ <span class="st">Parcel</span>&nbsp;&nbsp;<span class="sf">PARCELID · LANDID · NUMBER · <strong>USECATEGORY</strong> → CatFolos</span><br>
+        &nbsp;&nbsp;├─ <span class="st">Deed</span>&nbsp;&nbsp;<span class="sf">DEEDID · DEEDNUMBER · DEEDDATE · DEEDTYPE · FILEID → <strong>Acte</strong></span><br>
+        &nbsp;&nbsp;├─ <span class="st">Person</span>&nbsp;&nbsp;<span class="sf">FIRSTNAME · LASTNAME · IDCODE(opțional) · FILEID → <strong>Proprietar</strong></span><br>
+        &nbsp;&nbsp;└─ <span class="st">Building</span>&nbsp;&nbsp;<span class="sf">BUILDINGID · LANDID · BUILDNO · MEASUREDAREA</span><br>
+        <span class="sc">// Inele: secvența punctelor se închide la revenirea în primul punct al inelului</span><br>
+        <span class="sc">// Enclavă = inel conținut în altul (test de incluziune) · exterior CW, enclave CCW (ESRI)</span>
+      </div>
+
+      <div class="axis-box">
+        <strong>Axe coordonate CGXML (Stereo70):</strong>&nbsp;&nbsp;
+        X = Easting (Est)&nbsp;&nbsp;|&nbsp;&nbsp;Y = Northing (Nord)<br>
+        <strong>Shapefile output (EPSG:3844):</strong>&nbsp;&nbsp;
+        shp_x ← X (Easting)&nbsp;&nbsp;|&nbsp;&nbsp;shp_y ← Y (Northing)&nbsp;&mdash;&nbsp;fără inversare de axe
+      </div>
+
+      <div class="options-grid">
+        <label class="option-item">
+          <input type="checkbox" id="optCloseRing" checked>
+          <div>
+            <div class="opt-text">Închide inelul poligon</div>
+            <div class="opt-sub">Repetă primul punct la final<br>dacă nu este deja repetat</div>
+          </div>
+        </label>
+        <label class="option-item">
+          <input type="checkbox" id="optRichDBF" checked>
+          <div>
+            <div class="opt-text">Atribute extinse DBF</div>
+            <div class="opt-sub">MEAS_AREA · AREA_CALC · AREA_DIFF · E2IDENTIF<br>CADSECTOR · TOPONO · OPERTYPE · EXPORTDATE</div>
+          </div>
+        </label>
+        <label class="option-item">
+          <input type="checkbox" id="optBuildings">
+          <div>
+            <div class="opt-text">Include construcții</div>
+            <div class="opt-sub">Points.BUILDINGID → strat<br>constructii.shp separat în ZIP</div>
+          </div>
+        </label>
+        <label class="option-item">
+          <input type="checkbox" id="optSwapXY">
+          <div>
+            <div class="opt-text">Forțează inversare X↔Y</div>
+            <div class="opt-sub">Bifează dacă poligoanele apar rotite/oglindite<br>(fișiere cu X=Nord, Y=Est)</div>
+          </div>
+        </label>
+        <label class="option-item">
+          <input type="checkbox" id="optIdCode">
+          <div>
+            <div class="opt-text">Include CNP/CUI în PROPRIETAR</div>
+            <div class="opt-sub">Person.IDCODE — date cu caracter personal<br>(GDPR); implicit dezactivat</div>
+          </div>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- RUN -->
+  <button type="button" class="btn-run" id="btnRun" disabled>
+    ▶&nbsp;&nbsp;Procesează fișierele CGXML
+  </button>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-bar ind" id="progressBar"></div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-strip" id="statsStrip">
+    <div class="stat-cell"><span class="stat-val" id="statFiles">0</span><div class="stat-lbl">Fișiere CGXML</div></div>
+    <div class="stat-cell"><span class="stat-val" id="statLands">0</span><div class="stat-lbl">Terenuri Land</div></div>
+    <div class="stat-cell"><span class="stat-val" id="statPolys">0</span><div class="stat-lbl">Poligoane SHP</div></div>
+    <div class="stat-cell"><span class="stat-val" id="statEnclaves">0</span><div class="stat-lbl">Cu enclave</div></div>
+    <div class="stat-cell"><span class="stat-val" id="statPts">0</span><div class="stat-lbl">Puncte totale</div></div>
+  </div>
+
+  <!-- LOG -->
+  <div class="log-area" id="logArea"></div>
+
+  <!-- DOWNLOAD -->
+  <button type="button" class="btn-download" id="btnDownload">
+    ⬇&nbsp;&nbsp;Descarcă arhiva ZIP cu fișierele SHP
+  </button>
+
+  <footer>
+    PROIECȚIE <span class="sep">&middot;</span> EPSG:3844
+    <span class="sep">&middot;</span> Stereo70
+    <span class="sep">&middot;</span> Pulkovo 1942 (Adj 1958)
+    <span class="sep">&middot;</span> CGXMLSchema_new_v3.xsd
+    <span class="sep">&middot;</span> v2.1 — Acte · Proprietar · CatFolos · Enclave
+  </footer>
+
+</div>
+
+<script>
+/*
+ * CGXML2SHP v2.1 — Browser Shapefile Generator
+ * Schema : CGXMLSchema_new_v3.xsd
+ * Output : EPSG:3844 (Stereo70 / Pulkovo 1942 Adj 1958)
+ *
+ * v2.0:
+ *   - Atribute: ACTE (Deed), PROPRIETAR (Person), CATFOLOS (Parcel.USECATEGORY)
+ *   - Poligoane cu mai multe inele (enclave / părți multiple)
+ *
+ * v2.1 (corecturi):
+ *   - DBF codificat real în UTF-8 (diacriticele nu se mai pierd), trunchiere pe bytes
+ *   - Nume câmpuri DBF de max. 10 caractere (MEASRD_AREA → MEAS_AREA)
+ *   - Orientare inele conform specificației ESRI: exterior CW, enclave CCW
+ *   - Clasificare inel exterior / enclavă prin test de incluziune (nu doar după arie);
+ *     inelele disjuncte devin părți separate (multipart), nu găuri
+ *   - AREA_CALC = arie netă (exterior − enclave); AREA_DIFF numeric, în %
+ *   - Punctele cu BUILDINGID nu mai intră în conturul terenului
+ *   - Filtrare strictă *.cgxml (ignoră __MACOSX/ și fișierele ._*)
+ *   - Opțiune pentru includerea IDCODE (CNP/CUI) în PROPRIETAR — implicit dezactivată
+ *   - Avertismente pentru valori trunchiate / numere prea lungi; marcaj EOF în DBF
+ *
+ * Relaţii schema:
+ *   Points.IMMOVABLEID    → Land.LANDID
+ *   Points.BUILDINGID     → Building.BUILDINGID
+ *   Land.FILEID           → FileDescription.FILEID
+ *   Deed.FILEID           → FileDescription.FILEID  (toate actele fișierului)
+ *   Person.FILEID         → FileDescription.FILEID  (toți proprietarii fișierului)
+ *   Parcel.LANDID         → Land.LANDID
+ *
+ * Coordonate:
+ *   CGXML X → SHP x, CGXML Y → SHP y (fără swap implicit)
+ */
+
+var APP_VERSION = '2.1';
+
+/* ── PRJ string (EPSG:3844) ── */
+var PRJ = 'PROJCS["Pulkovo_1942_Adj_1958_Stereo70",' +
+  'GEOGCS["GCS_Pulkovo_1942_Adj_1958",' +
+  'DATUM["D_Pulkovo_1942_Adj_1958",' +
+  'SPHEROID["Krassowsky_1940",6378245.0,298.3]],' +
+  'PRIMEM["Greenwich",0.0],' +
+  'UNIT["Degree",0.0174532925199433]],' +
+  'PROJECTION["Double_Stereographic"],' +
+  'PARAMETER["False_Easting",500000.0],' +
+  'PARAMETER["False_Northing",500000.0],' +
+  'PARAMETER["Central_Meridian",25.0],' +
+  'PARAMETER["Scale_Factor",0.99975],' +
+  'PARAMETER["Latitude_Of_Origin",46.0],' +
+  'UNIT["Meter",1.0]]';
+
+/* Toleranță la compararea coordonatelor (m) */
+var COORD_EPS = 0.0005;
+
+/* ── State ── */
+var selectedFile  = null;
+var outputZipBlob = null;
+
+/* ── DOM refs ── */
+var elLog   = document.getElementById('logArea');
+var elRun   = document.getElementById('btnRun');
+var elDl    = document.getElementById('btnDownload');
+var elStats = document.getElementById('statsStrip');
+var elProg  = document.getElementById('progressWrap');
+var elDZ    = document.getElementById('dropZone');
+var elFI    = document.getElementById('fileInput');
+var elFSel  = document.getElementById('fileSelected');
+
+/* ── Logging ── */
+function log(msg, cls) {
+  cls = cls || 'info';
+  elLog.style.display = 'block';
+  var s = document.createElement('span');
+  s.className = 'log-line ' + cls;
+  s.textContent = msg;
+  elLog.appendChild(s);
+  elLog.scrollTop = elLog.scrollHeight;
+}
+function clearLog() {
+  while (elLog.firstChild) elLog.removeChild(elLog.firstChild);
+  elLog.style.display = 'none';
+}
+function setProg(on) { elProg.style.display = on ? 'block' : 'none'; }
+
+/* ── File input ── */
+function handleFile(f) {
+  if (!f) return;
+  if (!/\.zip$/i.test(f.name)) { alert('Vă rugăm selectați un fișier .zip'); return; }
+  selectedFile = f;
+  elFSel.style.display = 'block';
+  elFSel.textContent = '📁 ' + f.name + '  (' + (f.size / 1024).toFixed(1) + ' KB)';
+  elRun.disabled = false;
+  elDl.style.display = 'none';
+  outputZipBlob = null;
+  elStats.style.display = 'none';
+  clearLog();
+}
+
+elFI.addEventListener('change', function(e) {
+  var files = e.target.files;
+  if (files && files[0]) handleFile(files[0]);
+});
+elDZ.addEventListener('dragover',  function(e){ e.preventDefault(); e.stopPropagation(); elDZ.classList.add('drag-over'); });
+elDZ.addEventListener('dragleave', function(e){ e.preventDefault(); elDZ.classList.remove('drag-over'); });
+elDZ.addEventListener('drop',      function(e){
+  e.preventDefault(); e.stopPropagation(); elDZ.classList.remove('drag-over');
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+/* ── Run ── */
+elRun.addEventListener('click', function() { processAll(); });
+
+function processAll() {
+  if (!selectedFile) return;
+  clearLog(); setProg(true); elRun.disabled = true;
+  elDl.style.display = 'none'; outputZipBlob = null; elStats.style.display = 'none';
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    JSZip.loadAsync(e.target.result).then(function(zip) {
+      return processZip(zip);
+    }).catch(function(err) {
+      log('EROARE: ' + err.message, 'error');
+      setProg(false); elRun.disabled = false;
+    });
+  };
+  reader.onerror = function() {
+    log('EROARE: Nu s-a putut citi fișierul.', 'error');
+    setProg(false); elRun.disabled = false;
+  };
+  reader.readAsArrayBuffer(selectedFile);
+}
+
+/* Acceptă doar *.cgxml reale; ignoră resursele macOS (__MACOSX/, ._*) */
+function isCgxmlEntry(relPath, zipFile) {
+  if (zipFile.dir) return false;
+  var p = relPath.replace(/\\/g, '/');
+  var base = p.split('/').pop();
+  if (/(^|\/)__MACOSX\//i.test(p)) return false;
+  if (base.indexOf('._') === 0) return false;
+  return /\.cgxml$/i.test(base);
+}
+
+function processZip(zip) {
+  log('Citire arhivă ZIP ...', 'head');
+  var entries = [];
+  zip.forEach(function(relPath, zipFile) {
+    if (isCgxmlEntry(relPath, zipFile)) entries.push({ path: relPath, file: zipFile });
+  });
+
+  if (entries.length === 0) {
+    log('EROARE: Nu există fișiere .cgxml în arhivă!', 'error');
+    setProg(false); elRun.disabled = false;
+    return Promise.resolve();
+  }
+  log('Găsite ' + entries.length + ' fișier(e) CGXML', 'ok');
+
+  var opts = {
+    swapXY:     document.getElementById('optSwapXY').checked,
+    closeRing:  document.getElementById('optCloseRing').checked,
+    inclBld:    document.getElementById('optBuildings').checked,
+    inclIdCode: document.getElementById('optIdCode').checked,
+  };
+  var richDBF = document.getElementById('optRichDBF').checked;
+
+  var allLandPolys = [], allBldPolys = [];
+  var totalLands = 0, totalPts = 0, totalEnclaves = 0, totalMulti = 0;
+
+  var chain = Promise.resolve();
+  for (var fi = 0; fi < entries.length; fi++) {
+    (function(idx) {
+      chain = chain.then(function() {
+        var entry = entries[idx];
+        var fname = entry.path.split('/').pop();
+        log('[' + (idx+1) + '/' + entries.length + ']  ' + fname, 'head');
+
+        return entry.file.async('string').then(function(xml) {
+          var result;
+          try { result = parseCGXML(xml, fname, opts); }
+          catch(e) { log('  -> Eroare XML: ' + e.message, 'error'); return; }
+
+          totalLands += result.nLands;
+          log('  Land-uri: ' + result.nLands + '  |  Puncte brute: ' + result.nRawPts +
+              (result.nBldPts > 0 ? '  |  Puncte construcții (excluse din teren): ' + result.nBldPts : ''), 'dim');
+          if (result.nSkipped > 0) log('  Ignorate (< 3 puncte distincte): ' + result.nSkipped, 'warn');
+          if (result.nDroppedPts > 0) log('  Puncte rămase în afara unui inel valid (ignorate): ' + result.nDroppedPts, 'warn');
+
+          for (var i = 0; i < result.landPolys.length; i++) {
+            var poly = result.landPolys[i];
+            poly.attrs.ID = allLandPolys.length + 1;
+            var nPts = 0;
+            for (var r = 0; r < poly.rings.length; r++) nPts += poly.rings[r].length;
+            totalPts += nPts;
+            if (poly.nHoles > 0) totalEnclaves++;
+            if (poly.nOuter > 1) totalMulti++;
+
+            var tag = '';
+            if (poly.nHoles > 0) tag += '  [ENCLAVE: ' + poly.nHoles + ']';
+            if (poly.nOuter > 1) tag += '  [MULTIPART: ' + poly.nOuter + ']';
+            var diff = poly.attrs.AREA_DIFF;
+            var diffTxt = poly.attrs.MEAS_AREA > 0 ? '  dif=' + diff.toFixed(2) + '%' : '';
+            log('  OK LANDID=' + poly.attrs.LANDID +
+                '  inele=' + poly.rings.length +
+                '  pct=' + nPts +
+                '  S_calc=' + poly.attrs.AREA_CALC.toFixed(2) +
+                diffTxt +
+                '  PAPERCADNO="' + (poly.attrs.PAPERCADNO || '-') + '"' + tag,
+                (tag || diff > 1) ? 'warn' : 'ok');
+            allLandPolys.push(poly);
+          }
+
+          if (opts.inclBld) {
+            for (var j = 0; j < result.bldPolys.length; j++) {
+              var bp = result.bldPolys[j]; bp.attrs.ID = allBldPolys.length + 1;
+              allBldPolys.push(bp);
+            }
+            if (result.bldPolys.length > 0) log('  Construcții: ' + result.bldPolys.length, 'info');
+          }
+        }).catch(function(e) { log('  -> Eroare citire: ' + e.message, 'error'); });
+      });
+    })(fi);
+  }
+
+  return chain.then(function() {
+    if (allLandPolys.length === 0) {
+      log('EROARE: Niciun poligon Land valid!', 'error');
+      setProg(false); elRun.disabled = false; return;
+    }
+    log('--- TOTAL: ' + allLandPolys.length + ' poligoane, ' + totalEnclaves + ' cu enclave, ' +
+        totalMulti + ' multipart, ' + totalPts + ' puncte', 'head');
+    log('Generare fișiere shapefile ...', 'info');
+
+    var warnFn = function(m) { log('  ' + m, 'warn'); };
+
+    var shpL = buildSHP(allLandPolys);
+    var dbfL = buildDBF(allLandPolys, richDBF, 'land', warnFn);
+
+    var outZip = new JSZip();
+    outZip.file('teren.shp', shpL.shpBuf);
+    outZip.file('teren.shx', shpL.shxBuf);
+    outZip.file('teren.dbf', dbfL);
+    outZip.file('teren.prj', PRJ);
+    outZip.file('teren.cpg', 'UTF-8');
+
+    if (opts.inclBld && allBldPolys.length > 0) {
+      var shpB = buildSHP(allBldPolys);
+      var dbfB = buildDBF(allBldPolys, richDBF, 'building', warnFn);
+      outZip.file('constructii.shp', shpB.shpBuf);
+      outZip.file('constructii.shx', shpB.shxBuf);
+      outZip.file('constructii.dbf', dbfB);
+      outZip.file('constructii.prj', PRJ);
+      outZip.file('constructii.cpg', 'UTF-8');
+      log('Strat constructii.shp: ' + allBldPolys.length + ' poligoane', 'ok');
+    } else if (opts.inclBld) {
+      log('Nu s-au găsit construcții cu contur valid.', 'warn');
+    }
+
+    return outZip.generateAsync({ type: 'blob', compression: 'DEFLATE' }).then(function(blob) {
+      outputZipBlob = blob;
+      log('ZIP generat: ' + (blob.size / 1024).toFixed(1) + ' KB', 'ok');
+      document.getElementById('statFiles').textContent    = entries.length;
+      document.getElementById('statLands').textContent    = totalLands;
+      document.getElementById('statPolys').textContent    = allLandPolys.length;
+      document.getElementById('statEnclaves').textContent = totalEnclaves;
+      document.getElementById('statPts').textContent      = totalPts;
+      elStats.style.display = 'flex';
+      elDl.style.display = 'block';
+      setProg(false); elRun.disabled = false;
+    });
+  });
+}
+
+/* ════════════════════════════════════════════════════════════
+   CGXML PARSER — CGXMLSchema_new_v3.xsd
+   ════════════════════════════════════════════════════════════ */
+function parseCGXML(xmlText, filename, opts) {
+  var parser = new DOMParser();
+  var doc    = parser.parseFromString(xmlText, 'application/xml');
+  var pe = doc.getElementsByTagName('parsererror')[0];
+  if (pe) throw new Error(pe.textContent.slice(0, 120));
+
+  /* ── helpers ── */
+  function childEl(el, tag) {
+    var ch = el.children || el.childNodes;
+    for (var i = 0; i < ch.length; i++) if (ch[i].tagName === tag) return ch[i];
+    return null;
+  }
+  function ct(el, tag) { var c = childEl(el, tag); return c ? (c.textContent || '').trim() : ''; }
+  function cf(el, tag) { var v = ct(el, tag); return v !== '' ? parseFloat(v) : NaN; }
+  function ci(el, tag) { var v = ct(el, tag); return v !== '' ? parseInt(v, 10) : NaN; }
+
+  /* ── FileDescription ── */
+  var fdMap = {};
+  var fdEls = doc.getElementsByTagName('FileDescription');
+  for (var i = 0; i < fdEls.length; i++) {
+    var fd = fdEls[i], fdId = ci(fd, 'FILEID');
+    if (!isNaN(fdId)) fdMap[fdId] = {
+      FILENAME:      ct(fd, 'FILENAME'),
+      EXPORTDATE:    ct(fd, 'EXPORTDATE').slice(0, 10),
+      OPERATIONTYPE: ct(fd, 'OPERATIONTYPE'),
+    };
+  }
+
+  /* ── Deed — group by FILEID → "TIP/NUMĂR/DATA" ── */
+  var deedsByFile = {};
+  var deedEls = doc.getElementsByTagName('Deed');
+  for (var i = 0; i < deedEls.length; i++) {
+    var dEl = deedEls[i];
+    var dFid = ci(dEl, 'FILEID');
+    if (isNaN(dFid)) continue;
+    var dStr = [ct(dEl, 'DEEDTYPE'), ct(dEl, 'DEEDNUMBER'), ct(dEl, 'DEEDDATE').slice(0, 10)]
+                 .filter(Boolean).join('/');
+    if (!dStr) continue;
+    if (!deedsByFile[dFid]) deedsByFile[dFid] = [];
+    deedsByFile[dFid].push(dStr);
+  }
+
+  /* ── Person — group by FILEID → "Prenume Nume [(IDCODE)]" ── */
+  var personsByFile = {};
+  var personEls = doc.getElementsByTagName('Person');
+  for (var i = 0; i < personEls.length; i++) {
+    var pEl  = personEls[i];
+    var pFid = ci(pEl, 'FILEID');
+    if (isNaN(pFid)) continue;
+    var pStr = [ct(pEl, 'FIRSTNAME'), ct(pEl, 'LASTNAME')].filter(Boolean).join(' ');
+    var idc  = ct(pEl, 'IDCODE');
+    if (idc && opts.inclIdCode) pStr += (pStr ? ' ' : '') + '(' + idc + ')';
+    if (!pStr) continue;
+    if (!personsByFile[pFid]) personsByFile[pFid] = [];
+    personsByFile[pFid].push(pStr);
+  }
+
+  /* ── Land ── */
+  var landMap = {};
+  var landEls = doc.getElementsByTagName('Land');
+  for (var i = 0; i < landEls.length; i++) {
+    var lEl = landEls[i], lId = ci(lEl, 'LANDID');
+    if (!isNaN(lId)) landMap[lId] = {
+      LANDID:       lId,
+      FILEID:       ci(lEl, 'FILEID'),
+      CADSECTOR:    ct(lEl, 'CADSECTOR'),
+      MEASUREDAREA: cf(lEl, 'MEASUREDAREA'),
+      PAPERCADNO:   ct(lEl, 'PAPERCADNO'),
+      E2IDENTIFIER: ct(lEl, 'E2IDENTIFIER'),
+      TOPONO:       ct(lEl, 'TOPONO'),
+    };
+  }
+
+  /* ── Parcel — group by LANDID, valori USECATEGORY distincte ── */
+  var parcelsByLand = {};
+  var parcelEls = doc.getElementsByTagName('Parcel');
+  for (var i = 0; i < parcelEls.length; i++) {
+    var pcel = parcelEls[i], pLid = ci(pcel, 'LANDID');
+    if (isNaN(pLid)) continue;
+    var uc = ct(pcel, 'USECATEGORY');
+    if (!parcelsByLand[pLid]) parcelsByLand[pLid] = [];
+    if (uc && parcelsByLand[pLid].indexOf(uc) === -1) parcelsByLand[pLid].push(uc);
+  }
+
+  /* ── Building ── */
+  var bldMap = {};
+  if (opts.inclBld) {
+    var bldEls = doc.getElementsByTagName('Building');
+    for (var i = 0; i < bldEls.length; i++) {
+      var bEl = bldEls[i], bId = ci(bEl, 'BUILDINGID');
+      if (!isNaN(bId)) bldMap[bId] = {
+        BUILDINGID: bId, LANDID: ci(bEl, 'LANDID'),
+        BUILDNO: ci(bEl, 'BUILDNO'), MEASUREDAREA: cf(bEl, 'MEASUREDAREA'),
+      };
+    }
+  }
+
+  /* ── Points ──
+   * Un punct cu BUILDINGID aparține conturului unei construcții și NU intră
+   * în conturul terenului, chiar dacă are și IMMOVABLEID completat.
+   */
+  var ptsByLand = {}, ptsByBld = {}, nRawPts = 0, nBldPts = 0;
+  var ptEls = doc.getElementsByTagName('Points');
+  for (var i = 0; i < ptEls.length; i++) {
+    var pEl   = ptEls[i];
+    var immId = ci(pEl, 'IMMOVABLEID');
+    var bldId = ci(pEl, 'BUILDINGID');
+    var noStr = ct(pEl, 'NO');
+    var xv    = cf(pEl, 'X');
+    var yv    = cf(pEl, 'Y');
+    if (isNaN(xv) || isNaN(yv)) continue;
+    nRawPts++;
+    var no = noStr !== '' ? parseFloat(noStr) : nRawPts;
+    if (isNaN(no)) no = nRawPts;
+    var pt = opts.swapXY ? { no: no, x: yv, y: xv } : { no: no, x: xv, y: yv };
+
+    if (!isNaN(bldId) && bldId !== 0) {
+      nBldPts++;
+      if (opts.inclBld) { if (!ptsByBld[bldId]) ptsByBld[bldId] = []; ptsByBld[bldId].push(pt); }
+      continue;
+    }
+    if (!isNaN(immId)) { if (!ptsByLand[immId]) ptsByLand[immId] = []; ptsByLand[immId].push(pt); }
+  }
+
+  function toCoords(pts) {
+    pts.sort(function(a, b) { return a.no - b.no; });
+    var c = [];
+    for (var k = 0; k < pts.length; k++) c.push([pts[k].x, pts[k].y]);
+    return c;
+  }
+
+  /* ── Land polygons ── */
+  var landPolys = [], nSkipped = 0, nDroppedPts = 0;
+
+  for (var landId in ptsByLand) {
+    if (!ptsByLand.hasOwnProperty(landId)) continue;
+    var lid  = parseInt(landId, 10);
+    var land = landMap[lid] || { LANDID: lid };
+    var fd2  = fdMap[land.FILEID] || {};
+
+    var geom = buildPolygonRings(toCoords(ptsByLand[landId]), opts.closeRing);
+    nDroppedPts += geom.nDropped;
+    if (geom.rings.length === 0) { nSkipped++; continue; }
+
+    var measArea = isNaN(land.MEASUREDAREA) ? 0 : land.MEASUREDAREA;
+    var areaDiff = measArea > 0 ? Math.abs(geom.area - measArea) / measArea * 100 : 0;
+
+    landPolys.push({
+      rings:  geom.rings,
+      nOuter: geom.nOuter,
+      nHoles: geom.nHoles,
+      attrs: {
+        LANDID:     lid,
+        MEAS_AREA:  measArea,
+        AREA_CALC:  geom.area,
+        AREA_DIFF:  areaDiff,
+        PAPERCADNO: land.PAPERCADNO   || '',
+        E2IDENTIF:  land.E2IDENTIFIER || '',
+        CADSECTOR:  land.CADSECTOR    || '',
+        TOPONO:     land.TOPONO       || '',
+        CATFOLOS:   (parcelsByLand[lid] || []).join(','),
+        ACTE:       (deedsByFile[land.FILEID]   || []).join('; '),
+        PROPRIETAR: (personsByFile[land.FILEID] || []).join('; '),
+        FILENAME:   fd2.FILENAME || filename,
+        OPERTYPE:   fd2.OPERATIONTYPE || '',
+        EXPORTDATE: fd2.EXPORTDATE || '',
+      }
+    });
+  }
+
+  /* ── Building polygons ── */
+  var bldPolys = [];
+  if (opts.inclBld) {
+    for (var bIdStr in ptsByBld) {
+      if (!ptsByBld.hasOwnProperty(bIdStr)) continue;
+      var bid = parseInt(bIdStr, 10), bld = bldMap[bid] || { BUILDINGID: bid };
+      var bgeom = buildPolygonRings(toCoords(ptsByBld[bIdStr]), opts.closeRing);
+      nDroppedPts += bgeom.nDropped;
+      if (bgeom.rings.length === 0) continue;
+      bldPolys.push({
+        rings: bgeom.rings, nOuter: bgeom.nOuter, nHoles: bgeom.nHoles,
+        attrs: {
+          BUILDINGID: bid,
+          LANDID:     isNaN(bld.LANDID) ? 0 : bld.LANDID,
+          BUILDNO:    isNaN(bld.BUILDNO) ? 0 : bld.BUILDNO,
+          MEAS_AREA:  isNaN(bld.MEASUREDAREA) ? 0 : bld.MEASUREDAREA,
+          AREA_CALC:  bgeom.area,
+          FILENAME:   filename,
+        }
+      });
+    }
+  }
+
+  return {
+    landPolys: landPolys, bldPolys: bldPolys,
+    nLands: countKeys(landMap), nRawPts: nRawPts, nBldPts: nBldPts,
+    nSkipped: nSkipped, nDroppedPts: nDroppedPts,
+  };
+}
+
+/* ════════════════════════════════════════════════════════════
+   GEOMETRIE — împărțire în inele, clasificare, orientare
+   ════════════════════════════════════════════════════════════ */
+function samePt(a, b) {
+  return Math.abs(a[0] - b[0]) < COORD_EPS && Math.abs(a[1] - b[1]) < COORD_EPS;
+}
+
+/* Arie cu semn (formula Gauss / shoelace): pozitivă = CCW, negativă = CW */
+function signedArea(ring) {
+  var a = 0, m = ring.length;
+  for (var i = 0, j = m - 1; i < m; j = i++) {
+    a += (ring[j][0] + ring[i][0]) * (ring[j][1] - ring[i][1]);
+  }
+  return -a / 2;
+}
+
+function pointInRing(pt, ring) {
+  var inside = false, x = pt[0], y = pt[1];
+  for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    var xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+
+/* Inelul `inner` e în interiorul lui `outer` dacă majoritatea vârfurilor lui sunt în interior
+   (tolerează enclavele care ating conturul exterior într-un vârf). */
+function ringInside(inner, outer) {
+  var n = inner.length, votes = 0, total = 0;
+  if (n > 1 && samePt(inner[0], inner[n - 1])) n--;
+  for (var i = 0; i < n; i++) {
+    var onVertex = false;
+    for (var k = 0; k < outer.length; k++) if (samePt(inner[i], outer[k])) { onVertex = true; break; }
+    if (onVertex) continue;
+    total++;
+    if (pointInRing(inner[i], outer)) votes++;
+  }
+  return total > 0 && votes * 2 > total;
+}
+
+/*
+ * splitIntoRings — împarte secvența plată de puncte (sortată după NO) în inele.
+ * Un inel se închide când secvența revine la PRIMUL punct al inelului curent.
+ * Convenția așteptată pentru enclave: inele consecutive, fiecare închis explicit
+ * (ultimul punct = primul punct al inelului). Punctele duplicate consecutive se elimină.
+ */
+function splitIntoRings(coords, doClose) {
+  var c = [];
+  for (var i = 0; i < coords.length; i++) {
+    if (c.length === 0 || !samePt(c[c.length - 1], coords[i])) c.push(coords[i]);
+  }
+
+  var rings = [], start = 0, nDropped = 0;
+  for (var i = start + 1; i < c.length; i++) {
+    if (i - start >= 3 && samePt(c[i], c[start])) {
+      var ring = c.slice(start, i + 1);
+      ring[ring.length - 1] = [ring[0][0], ring[0][1]];   /* închidere exactă */
+      rings.push(ring);
+      start = i + 1;
+      i = start;   /* bucla incrementează la start+1 */
+    }
+  }
+
+  /* Puncte rămase după ultimul inel închis */
+  var rem = c.slice(start);
+  if (rem.length >= 3) {
+    if (doClose && !samePt(rem[0], rem[rem.length - 1])) rem.push([rem[0][0], rem[0][1]]);
+    rings.push(rem);
+  } else {
+    nDropped += rem.length;
+  }
+  return { rings: rings, nDropped: nDropped };
+}
+
+/*
+ * buildPolygonRings — returnează inelele orientate conform specificației ESRI Shapefile:
+ *   inel exterior  = sens orar (CW)
+ *   enclavă (gaură) = sens trigonometric (CCW)
+ * Clasificare: inelele se sortează după arie descrescător; adâncimea unui inel =
+ * numărul inelelor mai mari care îl conțin. Adâncime pară = exterior, impară = enclavă.
+ * Inelele disjuncte devin părți separate (multipart) ale aceluiași poligon.
+ */
+function buildPolygonRings(coords, doClose) {
+  var sp = splitIntoRings(coords, doClose);
+  var rings = sp.rings;
+  if (rings.length === 0) return { rings: [], nOuter: 0, nHoles: 0, area: 0, nDropped: sp.nDropped };
+
+  rings.sort(function(a, b) { return Math.abs(signedArea(b)) - Math.abs(signedArea(a)); });
+
+  var out = [], nOuter = 0, nHoles = 0, area = 0;
+  for (var i = 0; i < rings.length; i++) {
+    var depth = 0;
+    for (var j = 0; j < i; j++) if (ringInside(rings[i], rings[j])) depth++;
+    var isHole = (depth % 2) === 1;
+    var sa = signedArea(rings[i]);
+    var r = rings[i];
+    if (isHole ? sa < 0 : sa > 0) r = r.slice().reverse();
+    if (isHole) { nHoles++; area -= Math.abs(sa); } else { nOuter++; area += Math.abs(sa); }
+    out.push(r);
+  }
+  return { rings: out, nOuter: nOuter, nHoles: nHoles, area: area, nDropped: sp.nDropped };
+}
+
+function countKeys(obj) { var n=0; for (var k in obj) if (obj.hasOwnProperty(k)) n++; return n; }
+
+/* ════════════════════════════════════════════════════════════
+   SHAPEFILE BUILDER — Esri SHP + SHX (Shape Type 5: Polygon)
+   Suportă NumParts > 1 (enclave și părți multiple).
+   ════════════════════════════════════════════════════════════ */
+function buildSHP(polygons) {
+  var cSizes = [];
+  for (var i = 0; i < polygons.length; i++) {
+    var rings = polygons[i].rings;
+    var numPoints = 0;
+    for (var r = 0; r < rings.length; r++) numPoints += rings[r].length;
+    /* shapeType(4) + bbox(32) + numParts(4) + numPoints(4) + parts(4*numParts) + coords(16*numPoints) */
+    cSizes.push(4 + 32 + 4 + 4 + 4 * rings.length + numPoints * 16);
+  }
+
+  var shpLen = 100;
+  for (var i = 0; i < cSizes.length; i++) shpLen += 8 + cSizes[i];
+  var shxLen = 100 + polygons.length * 8;
+
+  var xn=Infinity, yn=Infinity, xx=-Infinity, yx=-Infinity;
+  for (var i = 0; i < polygons.length; i++) {
+    var rings = polygons[i].rings;
+    for (var r = 0; r < rings.length; r++) {
+      var cs = rings[r];
+      for (var j = 0; j < cs.length; j++) {
+        if (cs[j][0]<xn) xn=cs[j][0]; if (cs[j][0]>xx) xx=cs[j][0];
+        if (cs[j][1]<yn) yn=cs[j][1]; if (cs[j][1]>yx) yx=cs[j][1];
+      }
+    }
+  }
+  if (!isFinite(xn)) { xn=yn=xx=yx=0; }
+
+  var shpBuf = new ArrayBuffer(shpLen);
+  var shxBuf = new ArrayBuffer(shxLen);
+  var sv = new DataView(shpBuf);
+  var xv = new DataView(shxBuf);
+
+  function writeHdr(dv, flen) {
+    dv.setInt32(0,9994,false); dv.setInt32(4,0,false); dv.setInt32(8,0,false);
+    dv.setInt32(12,0,false); dv.setInt32(16,0,false); dv.setInt32(20,0,false);
+    dv.setInt32(24,(flen/2)|0,false); dv.setInt32(28,1000,true); dv.setInt32(32,5,true);
+    dv.setFloat64(36,xn,true); dv.setFloat64(44,yn,true);
+    dv.setFloat64(52,xx,true); dv.setFloat64(60,yx,true);
+    dv.setFloat64(68,0,true); dv.setFloat64(76,0,true);
+    dv.setFloat64(84,0,true); dv.setFloat64(92,0,true);
+  }
+  writeHdr(sv, shpLen); writeHdr(xv, shxLen);
+
+  var sOff=100, xOff=100;
+  for (var i=0; i<polygons.length; i++) {
+    var rings    = polygons[i].rings;
+    var numParts = rings.length;
+    var numPts   = 0; for (var r=0; r<rings.length; r++) numPts += rings[r].length;
+    var cWords   = (cSizes[i]/2)|0;
+
+    xv.setInt32(xOff, (sOff/2)|0, false); xv.setInt32(xOff+4, cWords, false); xOff+=8;
+    sv.setInt32(sOff, i+1, false); sv.setInt32(sOff+4, cWords, false); sOff+=8;
+
+    var pxn=Infinity, pyn=Infinity, pxx=-Infinity, pyx=-Infinity;
+    for (var r=0; r<rings.length; r++) {
+      for (var j=0; j<rings[r].length; j++) {
+        var cx=rings[r][j][0], cy=rings[r][j][1];
+        if(cx<pxn)pxn=cx; if(cx>pxx)pxx=cx;
+        if(cy<pyn)pyn=cy; if(cy>pyx)pyx=cy;
+      }
+    }
+
+    sv.setInt32(sOff,5,true);           sOff+=4;
+    sv.setFloat64(sOff,pxn,true);       sOff+=8;
+    sv.setFloat64(sOff,pyn,true);       sOff+=8;
+    sv.setFloat64(sOff,pxx,true);       sOff+=8;
+    sv.setFloat64(sOff,pyx,true);       sOff+=8;
+    sv.setInt32(sOff,numParts,true);    sOff+=4;
+    sv.setInt32(sOff,numPts,true);      sOff+=4;
+
+    var partOffset = 0;
+    for (var r=0; r<rings.length; r++) {
+      sv.setInt32(sOff, partOffset, true); sOff+=4;
+      partOffset += rings[r].length;
+    }
+    for (var r=0; r<rings.length; r++) {
+      for (var j=0; j<rings[r].length; j++) {
+        sv.setFloat64(sOff, rings[r][j][0], true); sOff+=8;
+        sv.setFloat64(sOff, rings[r][j][1], true); sOff+=8;
+      }
+    }
+  }
+  return { shpBuf: shpBuf, shxBuf: shxBuf };
+}
+
+/* ════════════════════════════════════════════════════════════
+   DBF BUILDER — dBASE III+, text în UTF-8 (vezi .cpg)
+   Lungimea câmpurilor C se măsoară în BYTES: o literă cu diacritic = 2 bytes.
+   ════════════════════════════════════════════════════════════ */
+function dbfFields(rich, type) {
+  if (type === 'building') {
+    return [
+      { name:'ID',         type:'N', len:10,  dec:0 },
+      { name:'BUILDINGID', type:'N', len:10,  dec:0 },
+      { name:'LANDID',     type:'N', len:10,  dec:0 },
+      { name:'BUILDNO',    type:'N', len:6,   dec:0 },
+      { name:'MEAS_AREA',  type:'N', len:16,  dec:3 },
+      { name:'AREA_CALC',  type:'N', len:16,  dec:3 },
+      { name:'FILENAME',   type:'C', len:100, dec:0 },
+    ];
+  }
+  if (rich) {
+    return [
+      { name:'ID',         type:'N', len:10,  dec:0 },
+      { name:'LANDID',     type:'N', len:10,  dec:0 },
+      { name:'MEAS_AREA',  type:'N', len:16,  dec:3 },
+      { name:'AREA_CALC',  type:'N', len:16,  dec:3 },
+      { name:'AREA_DIFF',  type:'N', len:10,  dec:2 },
+      { name:'PAPERCADNO', type:'C', len:50,  dec:0 },
+      { name:'E2IDENTIF',  type:'C', len:50,  dec:0 },
+      { name:'CADSECTOR',  type:'C', len:50,  dec:0 },
+      { name:'TOPONO',     type:'C', len:50,  dec:0 },
+      { name:'CATFOLOS',   type:'C', len:50,  dec:0 },
+      { name:'ACTE',       type:'C', len:254, dec:0 },
+      { name:'PROPRIETAR', type:'C', len:254, dec:0 },
+      { name:'FILENAME',   type:'C', len:100, dec:0 },
+      { name:'OPERTYPE',   type:'C', len:50,  dec:0 },
+      { name:'EXPORTDATE', type:'C', len:10,  dec:0 },
+    ];
+  }
+  return [
+    { name:'ID',         type:'N', len:10,  dec:0 },
+    { name:'LANDID',     type:'N', len:10,  dec:0 },
+    { name:'PAPERCADNO', type:'C', len:50,  dec:0 },
+    { name:'CATFOLOS',   type:'C', len:50,  dec:0 },
+    { name:'ACTE',       type:'C', len:254, dec:0 },
+    { name:'PROPRIETAR', type:'C', len:254, dec:0 },
+    { name:'FILENAME',   type:'C', len:100, dec:0 },
+  ];
+}
+
+function buildDBF(polygons, rich, type, warn) {
+  var fields = dbfFields(rich, type);
+
+  var recLen = 1;
+  for (var i=0; i<fields.length; i++) {
+    if (fields[i].name.length > 10) throw new Error('Nume câmp DBF > 10 caractere: ' + fields[i].name);
+    recLen += fields[i].len;
+  }
+  var hdrSize = 32 + fields.length * 32 + 1;
+  var buf = new ArrayBuffer(hdrSize + polygons.length * recLen + 1);   /* +1 = EOF 0x1A */
+  var dv  = new DataView(buf);
+  var u8  = new Uint8Array(buf);
+
+  var d = new Date();
+  dv.setUint8(0, 3); dv.setUint8(1, d.getFullYear()-1900);
+  dv.setUint8(2, d.getMonth()+1); dv.setUint8(3, d.getDate());
+  dv.setUint32(4, polygons.length, true);
+  dv.setUint16(8, hdrSize, true); dv.setUint16(10, recLen, true);
+
+  var fo = 32;
+  for (var i=0; i<fields.length; i++) {
+    var f = fields[i];
+    for (var k=0; k<f.name.length; k++) u8[fo+k] = f.name.charCodeAt(k) & 0x7F;  /* restul = 0 */
+    dv.setUint8(fo+11, f.type.charCodeAt(0));
+    dv.setUint8(fo+16, f.len); dv.setUint8(fo+17, f.dec);
+    fo += 32;
+  }
+  dv.setUint8(fo, 0x0D);
+
+  var nOverflow = 0, truncByField = {};
+  var ro = hdrSize;
+  for (var i=0; i<polygons.length; i++) {
+    dv.setUint8(ro, 0x20); ro++;
+    for (var j=0; j<fields.length; j++) {
+      var f   = fields[j];
+      var raw = polygons[i].attrs[f.name];
+      if (raw === undefined || raw === null) raw = '';
+      if (f.type === 'N') {
+        var num = parseFloat(raw);
+        if (!isFinite(num)) num = 0;
+        var s = f.dec > 0 ? num.toFixed(f.dec) : String(Math.round(num));
+        if (s.length > f.len) { s = new Array(f.len + 1).join('*'); nOverflow++; }
+        while (s.length < f.len) s = ' ' + s;
+        for (var k=0; k<f.len; k++) u8[ro+k] = s.charCodeAt(k);
+      } else {
+        var enc = encodeUtf8Fixed(String(raw), f.len, 0x20);
+        if (enc.truncated) truncByField[f.name] = (truncByField[f.name] || 0) + 1;
+        u8.set(enc.bytes, ro);
+      }
+      ro += f.len;
+    }
+  }
+  u8[ro] = 0x1A;   /* sfârșit de fișier dBASE */
+
+  if (warn) {
+    var lbl = type === 'building' ? 'constructii.dbf' : 'teren.dbf';
+    if (nOverflow > 0) warn(lbl + ': ' + nOverflow + ' valori numerice prea lungi (scrise ca ***)');
+    for (var fn in truncByField) {
+      if (truncByField.hasOwnProperty(fn)) {
+        var fl = 0; for (var q=0; q<fields.length; q++) if (fields[q].name === fn) fl = fields[q].len;
+        warn(lbl + ': câmpul ' + fn + ' — ' + truncByField[fn] + ' valori trunchiate la ' + fl + ' bytes');
+      }
+    }
+  }
+  return buf;
+}
+
+/* Codifică UTF-8 într-un câmp de lungime fixă, fără a tăia un caracter la jumătate */
+var UTF8_ENCODER = (typeof TextEncoder !== 'undefined') ? new TextEncoder() : null;
+function utf8Bytes(str) {
+  if (UTF8_ENCODER) return UTF8_ENCODER.encode(str);
+  var bin = unescape(encodeURIComponent(str)), out = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function encodeUtf8Fixed(str, len, padByte) {
+  var enc = utf8Bytes(str);
+  var out = new Uint8Array(len);
+  for (var i = 0; i < len; i++) out[i] = padByte;
+  var n = Math.min(enc.length, len);
+  if (n < enc.length) { while (n > 0 && (enc[n] & 0xC0) === 0x80) n--; }
+  out.set(enc.subarray(0, n));
+  return { bytes: out, truncated: n < enc.length };
+}
+
+/* ── Download ── */
+elDl.addEventListener('click', function() {
+  if (!outputZipBlob) return;
+  var url = (window.URL || window.webkitURL).createObjectURL(outputZipBlob);
+  if (typeof document.createElement('a').download !== 'undefined') {
+    var a = document.createElement('a');
+    a.href = url; a.download = 'cgxml_to_shp.zip';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); (window.URL||window.webkitURL).revokeObjectURL(url); }, 1000);
+  } else {
+    window.open(url, '_blank');
+  }
+});
+</script>
+</body>
+</html>
